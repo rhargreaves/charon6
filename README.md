@@ -1,4 +1,7 @@
 # charon6
+
+[![Build](https://github.com/rhargreaves/charon6/actions/workflows/build.yml/badge.svg)](https://github.com/rhargreaves/charon6/actions/workflows/build.yml)
+
 Abusing the IPv6 address space to covertly transmit data
 
 ## Build

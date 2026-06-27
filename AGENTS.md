@@ -1,0 +1,3 @@
+- This project should support Linux only. Everything will be ran in a container. It does not need to be compiled on macOS.
+- Try to limit use of unsafe code.
+- Code this project using Test Driven Development (test first, red, green, refactor). Commit after each passing test. Do not create more than one test at a time.

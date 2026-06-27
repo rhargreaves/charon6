@@ -1,0 +1,79 @@
+use std::fmt;
+use std::net::Ipv6Addr;
+use std::str::FromStr;
+
+const IPV6_BITS: u8 = 128;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Ipv6Cidr {
+    network: Ipv6Addr,
+    prefix_len: u8,
+}
+
+impl Ipv6Cidr {
+    pub fn contains(&self, address: Ipv6Addr) -> bool {
+        let mask = self.mask();
+        (u128::from(address) & mask) == (u128::from(self.network) & mask)
+    }
+
+    fn mask(&self) -> u128 {
+        if self.prefix_len == 0 {
+            0
+        } else {
+            u128::MAX << (IPV6_BITS - self.prefix_len)
+        }
+    }
+}
+
+impl fmt::Display for Ipv6Cidr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}/{}", self.network, self.prefix_len)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct ParseCidrError;
+
+impl fmt::Display for ParseCidrError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "invalid IPv6 CIDR (expected <address>/<prefix>)")
+    }
+}
+
+impl std::error::Error for ParseCidrError {}
+
+impl FromStr for Ipv6Cidr {
+    type Err = ParseCidrError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (address, prefix) = s.split_once('/').ok_or(ParseCidrError)?;
+        let network = address.parse::<Ipv6Addr>().map_err(|_| ParseCidrError)?;
+        let prefix_len = prefix.parse::<u8>().map_err(|_| ParseCidrError)?;
+        if prefix_len > IPV6_BITS {
+            return Err(ParseCidrError);
+        }
+        Ok(Ipv6Cidr {
+            network,
+            prefix_len,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cidr_contains_address_within_prefix() {
+        let cidr: Ipv6Cidr = "2001:db8::/32".parse().unwrap();
+        assert!(cidr.contains("2001:db8::1".parse().unwrap()));
+        assert!(!cidr.contains("2001:db9::1".parse().unwrap()));
+    }
+
+    #[test]
+    fn rejects_invalid_cidr() {
+        assert!("2001:db8::".parse::<Ipv6Cidr>().is_err());
+        assert!("not_an_addr/32".parse::<Ipv6Cidr>().is_err());
+        assert!("2001:db8::/129".parse::<Ipv6Cidr>().is_err());
+    }
+}

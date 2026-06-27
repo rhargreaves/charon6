@@ -15,3 +15,11 @@ make build
 ```
 make test
 ```
+
+`make test` runs the unit tests followed by the end-to-end smoke test. The
+smoke test opens an `AF_PACKET` socket and therefore needs `CAP_NET_RAW`, so it
+is invoked via `sudo`. Run it on its own with:
+
+```
+make smoke
+```

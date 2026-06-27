@@ -3,5 +3,5 @@
 - Code this project using Test Driven Development (test first, red, green, refactor). Commit after each passing test. Do not create more than one test at a time.
 - Write idiomatic Rust code.
 - Avoid writing comments. The code should be self-explanatory. Use named constants instead of magic numbers.
-- Keep comments for anything that is not self-explanatory from the code.
+- Keep comments for anything that is not self-explanatory.
 - Ensure you update README.md, Makefile and CI/CD if changes warrant it.

@@ -6,4 +6,9 @@ build:
 
 test:
 	cargo test
+	$(MAKE) smoke
 .PHONY: test
+
+smoke:
+	sudo -E "$$(which cargo)" test --test smoke
+.PHONY: smoke

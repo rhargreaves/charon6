@@ -82,3 +82,20 @@ fn decodes_out_of_order_packets() {
         "expected reordered message on stdout, got: {text:?}"
     );
 }
+
+#[test]
+fn incomplete_message_produces_no_output() {
+    const CIDR: &str = "2001:db8:5::/64";
+
+    let text = capture_with(CIDR, |socket| {
+        // Send terminator (seq 2) but missing seq 1 - message incomplete
+        send_to(socket, encode_dst(CIDR, 2, b"end")); // terminator
+        send_to(socket, encode_dst(CIDR, 0, b"LEAK! "));
+        // seq 1 never sent
+    });
+
+    assert!(
+        !text.contains("LEAK"),
+        "expected no output for incomplete message, got: {text:?}"
+    );
+}

@@ -65,3 +65,20 @@ fn decodes_ten_packet_message() {
         "expected decoded message on stdout, got: {text:?}"
     );
 }
+
+#[test]
+fn decodes_out_of_order_packets() {
+    const CIDR: &str = "2001:db8:4::/64";
+
+    let text = capture_with(CIDR, |socket| {
+        // Send packets out of order: seq 2, seq 0, seq 1
+        send_to(socket, encode_dst(CIDR, 2, b"world")); // terminator (len < 6)
+        send_to(socket, encode_dst(CIDR, 0, b"hello "));
+        send_to(socket, encode_dst(CIDR, 1, b"cruel "));
+    });
+
+    assert!(
+        text.contains("hello cruel world\n"),
+        "expected reordered message on stdout, got: {text:?}"
+    );
+}

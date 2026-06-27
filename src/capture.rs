@@ -2,7 +2,7 @@ use std::io::Write;
 use std::os::fd::OwnedFd;
 
 use crate::cidr::Ipv6Cidr;
-use crate::codec::{DecodeError, decode_dst};
+use crate::codec::{DecodeError, Reassembler, decode_dst};
 use crate::packet::parse_ipv6_endpoints;
 
 pub fn open_ipv6_packet_socket(device: &str) -> nix::Result<OwnedFd> {
@@ -25,6 +25,7 @@ pub fn capture_loop(fd: &OwnedFd, cidr: &Ipv6Cidr) -> nix::Result<()> {
     use std::os::fd::AsRawFd;
 
     let mut buf = vec![0u8; 65536];
+    let mut reassembler = Reassembler::new();
     let stdout = std::io::stdout();
     loop {
         let n = recv(fd.as_raw_fd(), &mut buf, MsgFlags::empty())?;
@@ -36,11 +37,10 @@ pub fn capture_loop(fd: &OwnedFd, cidr: &Ipv6Cidr) -> nix::Result<()> {
         match decode_dst(dst, cidr) {
             Ok(frame) => {
                 eprintln!("src={src} -> dst={dst}");
-                let mut out = stdout.lock();
-                if !frame.payload.is_empty() {
-                    let _ = out.write_all(&frame.payload);
-                }
-                if frame.is_last {
+                reassembler.push(frame);
+                if let Some(message) = reassembler.take() {
+                    let mut out = stdout.lock();
+                    let _ = out.write_all(&message);
                     let _ = out.write_all(b"\n");
                     let _ = out.flush();
                 }

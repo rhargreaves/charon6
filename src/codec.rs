@@ -1,9 +1,11 @@
+use std::collections::BTreeMap;
 use std::net::Ipv6Addr;
 
 use crate::cidr::Ipv6Cidr;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Frame {
+    pub seq: u8,
     pub payload: Vec<u8>,
     pub is_last: bool,
 }
@@ -20,13 +22,56 @@ const LEN_OFFSET: usize = 1;
 const PAYLOAD_OFFSET: usize = 2;
 const MAX_PAYLOAD: u8 = (HOST_BYTES - PAYLOAD_OFFSET) as u8;
 
+#[derive(Default)]
+pub struct Reassembler {
+    frames: BTreeMap<u8, Frame>,
+    last_seq: Option<u8>,
+}
+
+impl Reassembler {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn push(&mut self, frame: Frame) {
+        if frame.is_last {
+            self.last_seq = Some(frame.seq);
+        }
+        self.frames.insert(frame.seq, frame);
+    }
+
+    pub fn is_complete(&self) -> bool {
+        match self.last_seq {
+            Some(last) => {
+                let expected_count = last as usize + 1;
+                self.frames.len() == expected_count
+            }
+            None => false,
+        }
+    }
+
+    pub fn take(&mut self) -> Option<Vec<u8>> {
+        if !self.is_complete() {
+            return None;
+        }
+        let message = self
+            .frames
+            .values()
+            .flat_map(|f| f.payload.iter().copied())
+            .collect();
+        self.frames.clear();
+        self.last_seq = None;
+        Some(message)
+    }
+}
+
 pub fn decode_dst(addr: Ipv6Addr, cidr: &Ipv6Cidr) -> Result<Frame, DecodeError> {
     if !cidr.contains(addr) {
         return Err(DecodeError::OutOfCidr);
     }
     let bytes = addr.octets();
     let host = &bytes[bytes.len() - HOST_BYTES..];
-    let _seq = host[SEQ_OFFSET];
+    let seq = host[SEQ_OFFSET];
     let len = host[LEN_OFFSET];
     if len > MAX_PAYLOAD {
         return Err(DecodeError::InvalidLen(len));
@@ -34,6 +79,7 @@ pub fn decode_dst(addr: Ipv6Addr, cidr: &Ipv6Cidr) -> Result<Frame, DecodeError>
     let len_usize = len as usize;
     let payload = host[PAYLOAD_OFFSET..PAYLOAD_OFFSET + len_usize].to_vec();
     Ok(Frame {
+        seq,
         payload,
         is_last: len < MAX_PAYLOAD,
     })
@@ -68,6 +114,7 @@ mod tests {
         assert_eq!(
             frame,
             Frame {
+                seq: 0,
                 payload: b"hello ".to_vec(),
                 is_last: false,
             }
@@ -83,9 +130,11 @@ mod tests {
         assert_eq!(
             frame,
             Frame {
+                seq: 0x99,
                 payload: vec![b'h', b'i', b'!'],
                 is_last: true,
             }
         );
     }
+
 }

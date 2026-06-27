@@ -5,7 +5,7 @@ use clap::Parser;
 const DEFAULT_DEVICE: &str = "lo";
 
 #[derive(Parser)]
-#[command(about = "Capture IPv6 packets and report their source and destination")]
+#[command(about = "Capture IPv6 packets and decode messages encoded in destination addresses")]
 struct Args {
     #[arg(default_value = DEFAULT_DEVICE, help = "Interface to capture on")]
     device: String,
@@ -13,9 +13,9 @@ struct Args {
     #[arg(
         long,
         value_name = "IPv6 CIDR",
-        help = "Only report packets with a source or destination in this range"
+        help = "IPv6 CIDR used to decode destination addresses"
     )]
-    cidr: Option<Ipv6Cidr>,
+    cidr: Ipv6Cidr,
 }
 
 fn main() {
@@ -24,8 +24,8 @@ fn main() {
 
     let args = Args::parse();
 
-    println!("charon6 started");
-    println!("Opening AF_PACKET socket for device: {}", args.device);
+    eprintln!("charon6 started");
+    eprintln!("Opening AF_PACKET socket for device: {}", args.device);
 
     let fd = match open_ipv6_packet_socket(&args.device) {
         Ok(fd) => fd,
@@ -39,15 +39,12 @@ fn main() {
         }
     };
 
-    match &args.cidr {
-        Some(cidr) => println!(
-            "Listening for IPv6 packets on {} matching {cidr}...",
-            args.device
-        ),
-        None => println!("Listening for IPv6 packets on {}...", args.device),
-    }
+    eprintln!(
+        "Listening for IPv6 packets on {} decoding {}...",
+        args.device, args.cidr
+    );
 
-    if let Err(err) = capture_loop(&fd, args.cidr.as_ref()) {
+    if let Err(err) = capture_loop(&fd, &args.cidr) {
         eprintln!("capture error: {err}");
         std::process::exit(1);
     }

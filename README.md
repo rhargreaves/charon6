@@ -6,7 +6,20 @@ Abusing the IPv6 address space to covertly transmit data
 
 ## Usage
 
-### Receiving (decoding packets)
+### Sender
+
+```
+charon6 --send --cidr <IPv6 CIDR>
+```
+
+- `--send`, `-s` — send mode: read stdin, encode to IPv6 packets.
+
+Example:
+```
+echo -n "hello world" | charon6 --send --cidr 2001:db8::/64
+```
+
+### Receiver
 
 ```
 charon6 --recv --cidr <IPv6 CIDR>
@@ -15,17 +28,14 @@ charon6 --recv --cidr <IPv6 CIDR>
 - `--recv`, `-r` — receive mode: decode packets to stdout.
 - `--cidr` (required) — IPv6 `/64` range used to encode/decode destination addresses.
 
-### Sending (encoding stdin to packets)
-
+Example:
 ```
-charon6 --send --cidr <IPv6 CIDR>
+charon6 --recv --cidr 2001:db8::/64
 ```
-
-- `--send`, `-s` — send mode: read stdin, encode to IPv6 packets.
 
 ## Example
 
-First bind the documentation prefix `2001:db8::/64` to the loopback interface:
+First ensure the documentation prefix `2001:db8::/64` is bound to an interface:
 ```
 $ ip -6 route add local 2001:db8::/64 dev lo
 ```
@@ -40,7 +50,7 @@ Terminal 2: Send a message:
 $ echo -n "hello world" | charon6 --send --cidr 2001:db8::/64
 ```
 
-Output (Terminal 1):
+Terminal 1 output:
 ```
 hello world
 ```

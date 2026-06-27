@@ -67,10 +67,10 @@ Each captured IPv6 packet carries a chunk of the message in the host portion
 of its destination address. Locked to `/64`, so the host portion is 8 bytes:
 
 ```
-+-------------------+-------+-------+--------------------+
-| network prefix /64| seq u8| len u8| payload (len bytes)|
-| (8 bytes)         |       |       | (0..=6 bytes)      |
-+-------------------+-------+-------+--------------------+
++--------------------+--------+--------+---------------------+
+| network prefix /64 | seq u8 | len u8 | payload (len bytes) |
+| (8 bytes)          |        |        | (0..=6 bytes)       |
++--------------------+--------+--------+---------------------+
 ```
 
 - `seq` — sequence number (0-255) for packet reordering.

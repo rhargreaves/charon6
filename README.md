@@ -82,7 +82,7 @@ of its destination address. Locked to `/64`, so the host portion is 8 bytes:
 +-------------------+-------+-------+--------------------+
 ```
 
-- `seq` — reserved for future ordering; ignored for now.
+- `seq` — sequence number (0-255) for packet reordering.
 - `len` — 0..=6. A packet with `len < 6` is the terminator of a message;
   the receiver emits the accumulated payload followed by a newline and flushes.
 - Frames with `len > 6` or destinations outside the configured CIDR are dropped
@@ -92,9 +92,9 @@ of its destination address. Locked to `/64`, so the host portion is 8 bytes:
 
 - No sender/encoder yet — pair with any tool that can target arbitrary IPv6
   destinations.
-- `seq` is ignored; messages must arrive in order.
 - No integrity check, no encryption, no multi-message multiplexing.
 - Prefix is fixed at `/64`.
+- Max 256 packets per message (seq is u8).
 
 ## Build
 

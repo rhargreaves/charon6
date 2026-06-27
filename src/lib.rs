@@ -32,15 +32,26 @@ impl fmt::Display for Ipv6Cidr {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct ParseCidrError;
+
+impl fmt::Display for ParseCidrError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "invalid IPv6 CIDR (expected <address>/<prefix>)")
+    }
+}
+
+impl std::error::Error for ParseCidrError {}
+
 impl FromStr for Ipv6Cidr {
-    type Err = ();
+    type Err = ParseCidrError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (address, prefix) = s.split_once('/').ok_or(())?;
-        let network = address.parse::<Ipv6Addr>().map_err(|_| ())?;
-        let prefix_len = prefix.parse::<u8>().map_err(|_| ())?;
+        let (address, prefix) = s.split_once('/').ok_or(ParseCidrError)?;
+        let network = address.parse::<Ipv6Addr>().map_err(|_| ParseCidrError)?;
+        let prefix_len = prefix.parse::<u8>().map_err(|_| ParseCidrError)?;
         if prefix_len > IPV6_BITS {
-            return Err(());
+            return Err(ParseCidrError);
         }
         Ok(Ipv6Cidr {
             network,

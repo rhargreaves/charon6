@@ -99,6 +99,13 @@ mod tests {
     }
 
     #[test]
+    fn rejects_invalid_cidr() {
+        assert!("2001:db8::".parse::<Ipv6Cidr>().is_err());
+        assert!("not_an_addr/32".parse::<Ipv6Cidr>().is_err());
+        assert!("2001:db8::/129".parse::<Ipv6Cidr>().is_err());
+    }
+
+    #[test]
     fn parses_src_and_dst_from_ipv6_header() {
         let mut packet = vec![0u8; 40];
         packet[0] = 0x60;

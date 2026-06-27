@@ -5,7 +5,6 @@ RUN rustup component add clippy rustfmt
 RUN apt-get update && apt-get install -y --no-install-recommends \
     make \
     iproute2 \
-    netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace

@@ -42,7 +42,7 @@ fn encode_dst(seq: u8, payload: &[u8]) -> Ipv6Addr {
 }
 
 #[test]
-fn decodes_hello_world_from_nc_packets() {
+fn decodes_hello_world_from_literal_destinations() {
     assert!(
         has_net_raw(),
         "missing CAP_NET_RAW: run via `make test` (uses sudo) or `make ci`"
@@ -58,13 +58,13 @@ fn decodes_hello_world_from_nc_packets() {
 
     thread::sleep(Duration::from_millis(500));
 
+    let socket = UdpSocket::bind("[::1]:0").expect("failed to bind loopback UDP socket");
     for dst in ["2001:db8::6:6865:6c6c:6f20", "2001:db8::105:776f:726c:6400"] {
-        let status = Command::new("sh")
-            .arg("-c")
-            .arg(format!("echo -n x | nc -6 -u -w1 {dst} 9999"))
-            .status()
-            .expect("failed to invoke nc");
-        assert!(status.success(), "nc to {dst} failed: {status}");
+        let addr: Ipv6Addr = dst.parse().expect("invalid destination address");
+        let target = SocketAddrV6::new(addr, 9999, 0, 0);
+        socket
+            .send_to(b"x", target)
+            .unwrap_or_else(|e| panic!("send_to {dst}: {e}"));
         thread::sleep(Duration::from_millis(80));
     }
 

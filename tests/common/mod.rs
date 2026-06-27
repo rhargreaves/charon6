@@ -55,10 +55,7 @@ pub fn send_to(socket: &UdpSocket, dst: Ipv6Addr) {
 /// Run charon6 against `lo` decoding `cidr`, invoke `send` to emit packets,
 /// then return whatever the binary wrote to stdout.
 pub fn capture_with(cidr: &str, send: impl FnOnce(&UdpSocket)) -> String {
-    assert!(
-        has_net_raw(),
-        "missing CAP_NET_RAW: run via `make test` (uses sudo) or `make ci`"
-    );
+    assert!(has_net_raw(), "missing CAP_NET_RAW");
     let _guard = loopback_lock();
 
     let mut child = Command::new(env!("CARGO_BIN_EXE_charon6"))

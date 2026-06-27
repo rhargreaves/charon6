@@ -27,7 +27,7 @@ $ ip -6 route add local 2001:db8::/64 dev lo
 ```
 
 Terminal 1: Start the receiver:
-```sh
+```
 $ charon6 lo --cidr 2001:db8::/64
 charon6 started
 Opening AF_PACKET socket for device: lo
@@ -36,7 +36,7 @@ Listening for IPv6 packets on lo decoding 2001:db8::/64...
 ```
 
 Terminal 2: Send the ping (`2001:db8::9903:6869:2100:0` decodes to `hi!`):
-```sh
+```
 $ ping6 2001:db8::9903:6869:2100:0
 PING 2001:db8::9903:6869:2100:0 (2001:db8::9903:6869:2100:0) 56 data bytes
 64 bytes from 2001:db8::9903:6869:2100:0: icmp_seq=1 ttl=64 time=3.74 ms

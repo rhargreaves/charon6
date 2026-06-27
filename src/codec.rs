@@ -44,6 +44,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn rejects_len_exceeding_payload_capacity() {
+        let cidr: Ipv6Cidr = "2001:db8::/64".parse().unwrap();
+        let addr: Ipv6Addr = "2001:db8::0007:0000:0000:0000".parse().unwrap();
+
+        assert_eq!(decode_dst(addr, &cidr), Err(DecodeError::InvalidLen(7)));
+    }
+
+    #[test]
     fn rejects_address_outside_cidr() {
         let cidr: Ipv6Cidr = "2001:db8::/64".parse().unwrap();
         let addr: Ipv6Addr = "fe80::1".parse().unwrap();

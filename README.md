@@ -6,20 +6,30 @@ Abusing the IPv6 address space to covertly transmit data
 
 ## Usage
 
+### Receiving (decoding packets)
+
 ```
-charon6 [device] --cidr <IPv6 CIDR>
+charon6 [device] --recv --cidr <IPv6 CIDR>
 ```
 
 - `device` — interface to capture on (defaults to `lo`).
-- `--cidr` (required) — IPv6 `/64` range used to decode destination addresses.
+- `--recv`, `-r` — receive mode: decode packets to stdout.
+- `--cidr` (required) — IPv6 `/64` range used to encode/decode destination addresses.
+
+Packets may arrive out of order; the receiver reassembles them using the `seq` field.
+
+### Sending (encoding stdin to packets)
 
 ```
-charon6 lo --cidr 2001:db8::/64
+charon6 --send --cidr <IPv6 CIDR>
 ```
 
-Decoded message bytes are written to stdout.
+- `--send`, `-s` — send mode: read stdin, encode to IPv6 packets.
 
-## Example 1 (single packet)
+Reads all of stdin, splits into 6-byte chunks, and sends each as a UDP packet
+to an address within the CIDR range.
+
+## Example
 
 First bind the documentation prefix `2001:db8::/64` to the loopback interface:
 ```
@@ -28,45 +38,16 @@ $ ip -6 route add local 2001:db8::/64 dev lo
 
 Terminal 1: Start the receiver:
 ```
-$ charon6 lo --cidr 2001:db8::/64
-charon6 started
-Opening AF_PACKET socket for device: lo
-Listening for IPv6 packets on lo decoding 2001:db8::/64...
-...
+$ charon6 lo --recv --cidr 2001:db8::/64
 ```
 
-Terminal 2: Send the ping (`2001:db8::9903:6869:2100:0` decodes to `hi!`):
+Terminal 2: Send a message:
 ```
-$ ping6 2001:db8::9903:6869:2100:0
-PING 2001:db8::9903:6869:2100:0 (2001:db8::9903:6869:2100:0) 56 data bytes
-64 bytes from 2001:db8::9903:6869:2100:0: icmp_seq=1 ttl=64 time=3.74 ms
-64 bytes from 2001:db8::9903:6869:2100:0: icmp_seq=2 ttl=64 time=0.190 ms
-...
+$ echo -n "hello world" | charon6 --send --cidr 2001:db8::/64
 ```
 
 Output (Terminal 1):
-
 ```
-src=::1 -> dst=2001:db8::9903:6869:2100:0
-hi!
-src=::1 -> dst=2001:db8::9903:6869:2100:0
-hi!
-...
-```
-
-## Example 2 (multiple packets)
-
-Sender:
-```
-echo -n x | nc -6 -u -w1 2001:db8::6:6865:6c6c:6f20 9999 && \
-echo -n x | nc -6 -u -w1 2001:db8::105:776f:726c:6400 9999
-```
-
-Receiver:
-```
-...
-src=::1 -> dst=2001:db8::6:6865:6c6c:6f20
-src=::1 -> dst=2001:db8::105:776f:726c:6400
 hello world
 ```
 
@@ -90,8 +71,6 @@ of its destination address. Locked to `/64`, so the host portion is 8 bytes:
 
 ### Current limitations
 
-- No sender/encoder yet — pair with any tool that can target arbitrary IPv6
-  destinations.
 - No integrity check, no encryption, no multi-message multiplexing.
 - Prefix is fixed at `/64`.
 - Max 256 packets per message (seq is u8).

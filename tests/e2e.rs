@@ -110,7 +110,7 @@ fn send_mode_encodes_stdin_to_packets() {
 
     // Start receiver
     let mut receiver = Command::new(env!("CARGO_BIN_EXE_charon6"))
-        .args(["lo", "--recv", "--cidr", CIDR])
+        .args(["--recv", "--cidr", CIDR])
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()

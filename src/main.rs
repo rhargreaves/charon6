@@ -2,14 +2,9 @@ use charon6::{Ipv6Cidr, capture_loop, open_ipv6_packet_socket, send_message};
 
 use clap::Parser;
 
-const DEFAULT_DEVICE: &str = "lo";
-
 #[derive(Parser)]
 #[command(about = "Encode/decode messages in IPv6 destination addresses")]
 struct Args {
-    #[arg(default_value = DEFAULT_DEVICE, help = "Interface to capture on (recv mode)")]
-    device: String,
-
     #[arg(
         long,
         value_name = "IPv6 CIDR",
@@ -38,7 +33,7 @@ fn main() {
     if args.send {
         run_send(&args.cidr);
     } else {
-        run_recv(&args.device, &args.cidr);
+        run_recv(&args.cidr);
     }
 }
 
@@ -57,22 +52,18 @@ fn run_send(cidr: &Ipv6Cidr) {
     }
 }
 
-fn run_recv(device: &str, cidr: &Ipv6Cidr) {
+fn run_recv(cidr: &Ipv6Cidr) {
     eprintln!("charon6 started");
-    eprintln!("Opening AF_PACKET socket for device: {device}");
 
-    let fd = match open_ipv6_packet_socket(device) {
+    let fd = match open_ipv6_packet_socket() {
         Ok(fd) => fd,
         Err(err) => {
-            eprintln!(
-                "Failed to open AF_PACKET socket for '{device}': {err} \
-                 (need root or CAP_NET_RAW)",
-            );
+            eprintln!("Failed to open AF_PACKET socket: {err} (need root or CAP_NET_RAW)");
             std::process::exit(1);
         }
     };
 
-    eprintln!("Listening for IPv6 packets on {device} decoding {cidr}...");
+    eprintln!("Listening for IPv6 packets, decoding {cidr}...");
 
     if let Err(err) = capture_loop(&fd, cidr) {
         eprintln!("capture error: {err}");

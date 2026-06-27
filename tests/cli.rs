@@ -21,7 +21,7 @@ fn help_exits_zero_and_prints_usage() {
 
 #[test]
 fn invalid_cidr_exits_with_usage_error() {
-    let output = run(&["lo", "--cidr", "not-a-cidr"]);
+    let output = run(&["--cidr", "not-a-cidr"]);
 
     assert_eq!(output.status.code(), Some(2));
 
@@ -31,7 +31,7 @@ fn invalid_cidr_exits_with_usage_error() {
 
 #[test]
 fn missing_cidr_value_exits_with_usage_error() {
-    let output = run(&["lo", "--cidr"]);
+    let output = run(&["--cidr"]);
 
     assert_eq!(output.status.code(), Some(2));
 }
@@ -45,7 +45,7 @@ fn unknown_flag_exits_with_usage_error() {
 
 #[test]
 fn missing_required_cidr_exits_with_usage_error() {
-    let output = run(&["lo"]);
+    let output = run(&[]);
 
     assert_eq!(output.status.code(), Some(2));
     let stderr = String::from_utf8_lossy(&output.stderr);

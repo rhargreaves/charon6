@@ -9,11 +9,10 @@ Abusing the IPv6 address space to covertly transmit data
 ### Receiving (decoding packets)
 
 ```
-charon6 [device] --recv --cidr <IPv6 CIDR>
+charon6 --recv --cidr <IPv6 CIDR>
 ```
 
-- `device` — interface to capture on (defaults to `lo`).
-- `--recv`, `-r` — receive mode: decode packets to stdout.
+- `--recv`, `-r` — receive mode: decode packets to stdout (listens on all interfaces).
 - `--cidr` (required) — IPv6 `/64` range used to encode/decode destination addresses.
 
 ### Sending (encoding stdin to packets)
@@ -33,7 +32,7 @@ $ ip -6 route add local 2001:db8::/64 dev lo
 
 Terminal 1: Start the receiver:
 ```
-$ charon6 lo --recv --cidr 2001:db8::/64
+$ charon6 --recv --cidr 2001:db8::/64
 ```
 
 Terminal 2: Send a message:

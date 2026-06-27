@@ -57,7 +57,7 @@ pub fn capture_with(cidr: &str, send: impl FnOnce(&UdpSocket)) -> String {
     );
 
     let mut child = Command::new(env!("CARGO_BIN_EXE_charon6"))
-        .args(["lo", "--cidr", cidr])
+        .args(["--cidr", cidr])
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()

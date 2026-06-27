@@ -5,19 +5,15 @@ use crate::cidr::Ipv6Cidr;
 use crate::codec::{DecodeError, Reassembler, decode_dst};
 use crate::packet::parse_ipv6_endpoints;
 
-pub fn open_ipv6_packet_socket(device: &str) -> nix::Result<OwnedFd> {
-    use nix::sys::socket::{
-        AddressFamily, SockFlag, SockProtocol, SockType, setsockopt, socket, sockopt::BindToDevice,
-    };
+pub fn open_ipv6_packet_socket() -> nix::Result<OwnedFd> {
+    use nix::sys::socket::{AddressFamily, SockFlag, SockProtocol, SockType, socket};
 
-    let fd = socket(
+    socket(
         AddressFamily::Packet,
         SockType::Datagram,
         SockFlag::empty(),
         SockProtocol::EthIpv6,
-    )?;
-    setsockopt(&fd, BindToDevice, &std::ffi::OsString::from(device))?;
-    Ok(fd)
+    )
 }
 
 pub fn capture_loop(fd: &OwnedFd, cidr: &Ipv6Cidr) -> nix::Result<()> {
@@ -59,12 +55,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn opens_packet_socket_on_loopback() {
-        assert!(open_ipv6_packet_socket("lo").is_ok());
-    }
-
-    #[test]
-    fn errors_on_nonexistent_device() {
-        assert!(open_ipv6_packet_socket("no_such_dev0").is_err());
+    fn opens_packet_socket() {
+        assert!(open_ipv6_packet_socket().is_ok());
     }
 }

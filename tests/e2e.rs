@@ -1,10 +1,19 @@
 use std::io::Read;
 use std::net::{Ipv6Addr, SocketAddrV6, UdpSocket};
 use std::process::{Command, Stdio};
+use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::thread;
 use std::time::Duration;
 
 const TEST_CIDR: &str = "2001:db8::/64";
+
+/// e2e tests share the loopback interface; serialize so captures don't interleave.
+fn loopback_lock() -> MutexGuard<'static, ()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 
 fn has_net_raw() -> bool {
     const CAP_NET_RAW: u32 = 13;
@@ -33,11 +42,59 @@ fn encode_dst(seq: u8, payload: &[u8]) -> Ipv6Addr {
 }
 
 #[test]
+fn decodes_hello_world_from_nc_packets() {
+    assert!(
+        has_net_raw(),
+        "missing CAP_NET_RAW: run via `make test` (uses sudo) or `make ci`"
+    );
+    let _guard = loopback_lock();
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_charon6"))
+        .args(["lo", "--cidr", TEST_CIDR])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("failed to spawn charon6");
+
+    thread::sleep(Duration::from_millis(500));
+
+    for dst in ["2001:db8::6:6865:6c6c:6f20", "2001:db8::105:776f:726c:6400"] {
+        let status = Command::new("sh")
+            .arg("-c")
+            .arg(format!("echo -n x | nc -6 -u -w1 {dst} 9999"))
+            .status()
+            .expect("failed to invoke nc");
+        assert!(status.success(), "nc to {dst} failed: {status}");
+        thread::sleep(Duration::from_millis(80));
+    }
+
+    thread::sleep(Duration::from_millis(300));
+    child.kill().expect("failed to kill charon6");
+
+    let mut output = Vec::new();
+    child
+        .stdout
+        .take()
+        .expect("missing stdout pipe")
+        .read_to_end(&mut output)
+        .expect("failed to read charon6 stdout");
+
+    child.wait().expect("failed to reap charon6");
+
+    let text = String::from_utf8_lossy(&output);
+    assert!(
+        text.contains("hello world\n"),
+        "expected decoded message on stdout, got: {text:?}"
+    );
+}
+
+#[test]
 fn decodes_message_from_destination_addresses() {
     assert!(
         has_net_raw(),
         "missing CAP_NET_RAW: run via `make test` (uses sudo) or `make ci`"
     );
+    let _guard = loopback_lock();
 
     let mut child = Command::new(env!("CARGO_BIN_EXE_charon6"))
         .args(["lo", "--cidr", TEST_CIDR])

@@ -17,6 +17,22 @@ pub fn open_ipv6_packet_socket(device: &str) -> nix::Result<OwnedFd> {
     Ok(fd)
 }
 
+/// Receive IPv6 packets on `fd`, printing each source/destination pair.
+///
+/// Runs until a receive error occurs, which is returned to the caller.
+pub fn capture_loop(fd: &OwnedFd) -> nix::Result<()> {
+    use nix::sys::socket::{MsgFlags, recv};
+    use std::os::fd::AsRawFd;
+
+    let mut buf = vec![0u8; 65536];
+    loop {
+        let n = recv(fd.as_raw_fd(), &mut buf, MsgFlags::empty())?;
+        if let Some((src, dst)) = parse_ipv6_endpoints(&buf[..n]) {
+            println!("src={src} -> dst={dst}");
+        }
+    }
+}
+
 /// Parse the source and destination IPv6 addresses from a packet buffer.
 ///
 /// The buffer is expected to start at the IPv6 header (as delivered by an

@@ -17,8 +17,7 @@ charon6 [device] --cidr <IPv6 CIDR>
 charon6 lo --cidr 2001:db8::/64
 ```
 
-Decoded message bytes are written to **stdout**. Per-packet diagnostics
-(`src=... -> dst=...`) and dropped-packet notices go to **stderr**.
+Decoded message bytes are written to stdout.
 
 ## Wire format
 
@@ -32,8 +31,8 @@ of its destination address. Locked to `/64`, so the host portion is 8 bytes:
 +-------------------+-------+-------+--------------------+
 ```
 
-- `seq` — reserved for future ordering; **ignored in v1**.
-- `len` — 0..=6. A packet with `len < 6` is the **terminator** of a message;
+- `seq` — reserved for future ordering; ignored for now.
+- `len` — 0..=6. A packet with `len < 6` is the terminator of a message;
   the receiver emits the accumulated payload followed by a newline and flushes.
 - Frames with `len > 6` or destinations outside the configured CIDR are dropped
   and logged to stderr.

@@ -32,10 +32,10 @@ pub fn capture_loop(fd: &OwnedFd, cidr: &Ipv6Cidr) -> nix::Result<()> {
             eprintln!("dropped: malformed IPv6 header");
             continue;
         };
-        eprintln!("src={src} -> dst={dst}");
 
         match decode_dst(dst, cidr) {
             Ok(frame) => {
+                eprintln!("src={src} -> dst={dst}");
                 let mut out = stdout.lock();
                 if !frame.payload.is_empty() {
                     let _ = out.write_all(&frame.payload);
@@ -45,10 +45,9 @@ pub fn capture_loop(fd: &OwnedFd, cidr: &Ipv6Cidr) -> nix::Result<()> {
                     let _ = out.flush();
                 }
             }
-            Err(DecodeError::OutOfCidr) => {
-                eprintln!("dropped: dst {dst} outside {cidr}");
-            }
+            Err(DecodeError::OutOfCidr) => {}
             Err(DecodeError::InvalidLen(len)) => {
+                eprintln!("src={src} -> dst={dst}");
                 eprintln!("dropped: invalid len={len} from {dst}");
             }
         }

@@ -1,4 +1,21 @@
 use std::net::Ipv6Addr;
+use std::os::fd::OwnedFd;
+
+/// Open an `AF_PACKET` socket that receives IPv6 packets on `device`.
+pub fn open_ipv6_packet_socket(device: &str) -> nix::Result<OwnedFd> {
+    use nix::sys::socket::{
+        AddressFamily, SockFlag, SockProtocol, SockType, setsockopt, socket, sockopt::BindToDevice,
+    };
+
+    let fd = socket(
+        AddressFamily::Packet,
+        SockType::Datagram,
+        SockFlag::empty(),
+        SockProtocol::EthIpv6,
+    )?;
+    setsockopt(&fd, BindToDevice, &std::ffi::OsString::from(device))?;
+    Ok(fd)
+}
 
 /// Parse the source and destination IPv6 addresses from a packet buffer.
 ///
@@ -18,6 +35,20 @@ pub fn parse_ipv6_endpoints(packet: &[u8]) -> Option<(Ipv6Addr, Ipv6Addr)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Returns true if the current process holds CAP_NET_RAW in its effective set.
+    fn has_net_raw() -> bool {
+        const CAP_NET_RAW: u32 = 13;
+        let status = std::fs::read_to_string("/proc/self/status").unwrap_or_default();
+        for line in status.lines() {
+            if let Some(hex) = line.strip_prefix("CapEff:") {
+                if let Ok(caps) = u64::from_str_radix(hex.trim(), 16) {
+                    return caps & (1 << CAP_NET_RAW) != 0;
+                }
+            }
+        }
+        false
+    }
 
     #[test]
     fn parses_src_and_dst_from_ipv6_header() {
@@ -41,5 +72,14 @@ mod tests {
         packet[0] = 0x40;
 
         assert_eq!(parse_ipv6_endpoints(&packet), None);
+    }
+
+    #[test]
+    fn opens_packet_socket_on_loopback() {
+        if !has_net_raw() {
+            eprintln!("skipping opens_packet_socket_on_loopback: missing CAP_NET_RAW");
+            return;
+        }
+        assert!(open_ipv6_packet_socket("lo").is_ok());
     }
 }

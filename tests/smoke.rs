@@ -62,6 +62,8 @@ fn reports_ipv6_traffic_on_loopback() {
         .read_to_string(&mut output)
         .expect("failed to read charon6 stdout");
 
+    child.wait().expect("failed to reap charon6");
+
     assert!(
         output.contains("src=::1 -> dst=::1"),
         "expected loopback capture in output, got:\n{output}"

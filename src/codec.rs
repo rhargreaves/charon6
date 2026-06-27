@@ -49,7 +49,6 @@ impl Reassembler {
             None => false,
         }
     }
-
     pub fn take(&mut self) -> Option<Vec<u8>> {
         if !self.is_complete() {
             return None;
@@ -63,6 +62,16 @@ impl Reassembler {
         self.last_seq = None;
         Some(message)
     }
+}
+
+pub fn encode_dst(cidr: &Ipv6Cidr, seq: u8, payload: &[u8]) -> Ipv6Addr {
+    assert!(payload.len() <= MAX_PAYLOAD as usize);
+    let mut bytes = cidr.network().octets();
+    bytes[HOST_BYTES + SEQ_OFFSET] = seq;
+    bytes[HOST_BYTES + LEN_OFFSET] = payload.len() as u8;
+    bytes[HOST_BYTES + PAYLOAD_OFFSET..HOST_BYTES + PAYLOAD_OFFSET + payload.len()]
+        .copy_from_slice(payload);
+    Ipv6Addr::from(bytes)
 }
 
 pub fn decode_dst(addr: Ipv6Addr, cidr: &Ipv6Cidr) -> Result<Frame, DecodeError> {
@@ -136,5 +145,4 @@ mod tests {
             }
         );
     }
-
 }

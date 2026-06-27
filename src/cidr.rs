@@ -11,6 +11,10 @@ pub struct Ipv6Cidr {
 }
 
 impl Ipv6Cidr {
+    pub fn network(&self) -> Ipv6Addr {
+        self.network
+    }
+
     pub fn contains(&self, address: Ipv6Addr) -> bool {
         let mask = self.mask();
         (u128::from(address) & mask) == (u128::from(self.network) & mask)

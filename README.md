@@ -22,7 +22,7 @@ Decoded message bytes are written to stdout.
 ## Example
 
 First bind the documentation prefix `2001:db8::/64` to the loopback interface:
-```sh
+```
 $ ip -6 route add local 2001:db8::/64 dev lo
 ```
 

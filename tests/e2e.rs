@@ -2,12 +2,14 @@ mod common;
 
 use std::net::Ipv6Addr;
 
-use common::{TEST_CIDR, capture_with, encode_dst, send_to};
+use common::{capture_with, encode_dst, send_to};
 
 #[test]
 fn decodes_single_packet_message() {
-    let text = capture_with(TEST_CIDR, |socket| {
-        send_to(socket, encode_dst(0, b"hi!"));
+    const CIDR: &str = "2001:db8:1::/64";
+
+    let text = capture_with(CIDR, |socket| {
+        send_to(socket, encode_dst(CIDR, 0, b"hi!"));
     });
 
     assert!(
@@ -18,8 +20,13 @@ fn decodes_single_packet_message() {
 
 #[test]
 fn decodes_two_packet_message() {
-    let text = capture_with(TEST_CIDR, |socket| {
-        for dst in ["2001:db8::6:6865:6c6c:6f20", "2001:db8::105:776f:726c:6400"] {
+    const CIDR: &str = "2001:db8:2::/64";
+
+    let text = capture_with(CIDR, |socket| {
+        for dst in [
+            "2001:db8:2::6:6865:6c6c:6f20",
+            "2001:db8:2::105:776f:726c:6400",
+        ] {
             let addr: Ipv6Addr = dst.parse().expect("invalid destination address");
             send_to(socket, addr);
         }
@@ -33,6 +40,7 @@ fn decodes_two_packet_message() {
 
 #[test]
 fn decodes_ten_packet_message() {
+    const CIDR: &str = "2001:db8:3::/64";
     const TOTAL_PACKETS: usize = 10;
     const PAYLOAD_PER_PACKET: usize = 6;
     // 9 full packets + a 1-byte terminator = 10 packets total.
@@ -42,9 +50,9 @@ fn decodes_ten_packet_message() {
     let chunks: Vec<&[u8]> = message.chunks(PAYLOAD_PER_PACKET).collect();
     assert_eq!(chunks.len(), TOTAL_PACKETS);
 
-    let text = capture_with(TEST_CIDR, |socket| {
+    let text = capture_with(CIDR, |socket| {
         for (seq, chunk) in chunks.iter().enumerate() {
-            send_to(socket, encode_dst(seq as u8, chunk));
+            send_to(socket, encode_dst(CIDR, seq as u8, chunk));
         }
     });
 

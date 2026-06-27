@@ -1,23 +1,14 @@
 use std::io::Read;
 use std::net::{Ipv6Addr, SocketAddrV6, UdpSocket};
 use std::process::{Command, Stdio};
-use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::thread;
 use std::time::Duration;
-
-pub const TEST_CIDR: &str = "2001:db8::/64";
 
 const STARTUP_DELAY: Duration = Duration::from_millis(500);
 const SEND_INTERVAL: Duration = Duration::from_millis(80);
 const DRAIN_DELAY: Duration = Duration::from_millis(300);
 const DST_PORT: u16 = 9999;
-
-pub fn loopback_lock() -> MutexGuard<'static, ()> {
-    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(()))
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-}
+const PREFIX_BYTES: usize = 8;
 
 pub fn has_net_raw() -> bool {
     const CAP_NET_RAW: u32 = 13;
@@ -32,16 +23,18 @@ pub fn has_net_raw() -> bool {
     false
 }
 
-pub fn encode_dst(seq: u8, payload: &[u8]) -> Ipv6Addr {
+pub fn encode_dst(cidr: &str, seq: u8, payload: &[u8]) -> Ipv6Addr {
     assert!(payload.len() <= 6);
-    let mut host = [0u8; 8];
-    host[0] = seq;
-    host[1] = payload.len() as u8;
-    host[2..2 + payload.len()].copy_from_slice(payload);
+    let network = cidr
+        .split('/')
+        .next()
+        .and_then(|s| s.parse::<Ipv6Addr>().ok())
+        .unwrap_or_else(|| panic!("invalid cidr: {cidr}"));
 
-    let mut bytes = [0u8; 16];
-    bytes[..8].copy_from_slice(&[0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0]);
-    bytes[8..].copy_from_slice(&host);
+    let mut bytes = network.octets();
+    bytes[PREFIX_BYTES] = seq;
+    bytes[PREFIX_BYTES + 1] = payload.len() as u8;
+    bytes[PREFIX_BYTES + 2..PREFIX_BYTES + 2 + payload.len()].copy_from_slice(payload);
     Ipv6Addr::from(bytes)
 }
 
@@ -54,9 +47,14 @@ pub fn send_to(socket: &UdpSocket, dst: Ipv6Addr) {
 
 /// Run charon6 against `lo` decoding `cidr`, invoke `send` to emit packets,
 /// then return whatever the binary wrote to stdout.
+///
+/// Tests should pass distinct CIDRs so they can run in parallel without
+/// capturing each other's traffic.
 pub fn capture_with(cidr: &str, send: impl FnOnce(&UdpSocket)) -> String {
-    assert!(has_net_raw(), "missing CAP_NET_RAW");
-    let _guard = loopback_lock();
+    assert!(
+        has_net_raw(),
+        "missing CAP_NET_RAW: run via `make test` (uses sudo) or `make ci`"
+    );
 
     let mut child = Command::new(env!("CARGO_BIN_EXE_charon6"))
         .args(["lo", "--cidr", cidr])

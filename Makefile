@@ -22,7 +22,9 @@ ci:
 	docker run \
 		-e CARGO_TEST="cargo test" \
 		--rm --cap-add=NET_RAW --cap-add=NET_ADMIN $(DOCKER_IMAGE) \
-		sh -c "ip link set lo up && ip -6 route add local 2001:db8::/32 dev lo && make lint-ci build test"
+		sh -c "\
+			ip -6 route add local 2001:db8::/32 dev lo && \
+			make lint-ci build test"
 .PHONY: ci
 
 lint-ci:

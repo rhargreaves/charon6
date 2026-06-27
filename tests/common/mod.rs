@@ -38,19 +38,22 @@ pub fn encode_dst(cidr: &str, seq: u8, payload: &[u8]) -> Ipv6Addr {
     Ipv6Addr::from(bytes)
 }
 
-pub fn send_to(socket: &UdpSocket, dst: Ipv6Addr) {
-    socket
-        .send_to(b"x", SocketAddrV6::new(dst, DST_PORT, 0, 0))
-        .unwrap_or_else(|e| panic!("send_to {dst}: {e}"));
-    thread::sleep(SEND_INTERVAL);
+pub fn send_raw(destinations: &[Ipv6Addr]) {
+    let socket = UdpSocket::bind("[::1]:0").expect("failed to bind loopback UDP socket");
+    for dst in destinations {
+        socket
+            .send_to(b"x", SocketAddrV6::new(*dst, DST_PORT, 0, 0))
+            .unwrap_or_else(|e| panic!("send_to {dst}: {e}"));
+        thread::sleep(SEND_INTERVAL);
+    }
 }
 
-/// Run charon6 against `lo` decoding `cidr`, invoke `send` to emit packets,
-/// then return whatever the binary wrote to stdout.
+/// Start a charon6 receiver for `cidr`, run `action`, then kill the
+/// receiver and return whatever it wrote to stdout.
 ///
 /// Tests should pass distinct CIDRs so they can run in parallel without
 /// capturing each other's traffic.
-pub fn capture_with(cidr: &str, send: impl FnOnce(&UdpSocket)) -> String {
+pub fn capture_with(cidr: &str, action: impl FnOnce()) -> String {
     assert!(
         has_net_raw(),
         "missing CAP_NET_RAW: run via `make test` (uses sudo) or `make ci`"
@@ -65,8 +68,7 @@ pub fn capture_with(cidr: &str, send: impl FnOnce(&UdpSocket)) -> String {
 
     thread::sleep(STARTUP_DELAY);
 
-    let socket = UdpSocket::bind("[::1]:0").expect("failed to bind loopback UDP socket");
-    send(&socket);
+    action();
 
     thread::sleep(DRAIN_DELAY);
     child.kill().expect("failed to kill charon6");
@@ -86,51 +88,29 @@ pub fn capture_with(cidr: &str, send: impl FnOnce(&UdpSocket)) -> String {
 /// Spawn a receiver and sender pair, pipe `message` into the sender,
 /// and return whatever the receiver wrote to stdout.
 pub fn send_recv(cidr: &str, message: &[u8], extra_send_args: &[&str]) -> String {
-    assert!(
-        has_net_raw(),
-        "missing CAP_NET_RAW: run via `make test` (uses sudo) or `make ci`"
-    );
+    let message = message.to_vec();
+    let mut send_args: Vec<String> = ["--send", "--cidr", cidr]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    send_args.extend(extra_send_args.iter().map(|s| s.to_string()));
 
-    let mut receiver = Command::new(env!("CARGO_BIN_EXE_charon6"))
-        .args(["--recv", "--cidr", cidr])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .expect("failed to spawn receiver");
+    capture_with(cidr, move || {
+        let mut sender = Command::new(env!("CARGO_BIN_EXE_charon6"))
+            .args(&send_args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("failed to spawn sender");
 
-    thread::sleep(STARTUP_DELAY);
+        sender
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(&message)
+            .expect("failed to write to sender stdin");
 
-    let mut send_args = vec!["--send", "--cidr", cidr];
-    send_args.extend_from_slice(extra_send_args);
-
-    let mut sender = Command::new(env!("CARGO_BIN_EXE_charon6"))
-        .args(&send_args)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .expect("failed to spawn sender");
-
-    sender
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(message)
-        .expect("failed to write to sender stdin");
-
-    sender.wait().expect("sender failed");
-
-    thread::sleep(DRAIN_DELAY);
-    receiver.kill().expect("failed to kill receiver");
-
-    let mut output = Vec::new();
-    receiver
-        .stdout
-        .take()
-        .expect("missing stdout pipe")
-        .read_to_end(&mut output)
-        .expect("failed to read receiver stdout");
-    receiver.wait().expect("failed to reap receiver");
-
-    String::from_utf8_lossy(&output).into_owned()
+        sender.wait().expect("sender failed");
+    })
 }

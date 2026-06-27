@@ -2,14 +2,14 @@ mod common;
 
 use std::net::Ipv6Addr;
 
-use common::{capture_with, encode_dst, send_recv, send_to};
+use common::{capture_with, encode_dst, send_raw, send_recv};
 
 #[test]
 fn decodes_single_packet_message() {
     const CIDR: &str = "2001:db8:1::/64";
 
-    let text = capture_with(CIDR, |socket| {
-        send_to(socket, encode_dst(CIDR, 0, b"hi!"));
+    let text = capture_with(CIDR, || {
+        send_raw(&[encode_dst(CIDR, 0, b"hi!")]);
     });
 
     assert!(
@@ -22,14 +22,11 @@ fn decodes_single_packet_message() {
 fn decodes_two_packet_message() {
     const CIDR: &str = "2001:db8:2::/64";
 
-    let text = capture_with(CIDR, |socket| {
-        for dst in [
-            "2001:db8:2::6:6865:6c6c:6f20",
-            "2001:db8:2::105:776f:726c:6400",
-        ] {
-            let addr: Ipv6Addr = dst.parse().expect("invalid destination address");
-            send_to(socket, addr);
-        }
+    let text = capture_with(CIDR, || {
+        send_raw(&[
+            "2001:db8:2::6:6865:6c6c:6f20".parse().unwrap(),
+            "2001:db8:2::105:776f:726c:6400".parse().unwrap(),
+        ]);
     });
 
     assert!(
@@ -47,13 +44,15 @@ fn decodes_ten_packet_message() {
     const MESSAGE_LEN: usize = (TOTAL_PACKETS - 1) * PAYLOAD_PER_PACKET + 1;
 
     let message: Vec<u8> = (0..MESSAGE_LEN).map(|i| b'a' + (i as u8 % 26)).collect();
-    let chunks: Vec<&[u8]> = message.chunks(PAYLOAD_PER_PACKET).collect();
-    assert_eq!(chunks.len(), TOTAL_PACKETS);
+    let dsts: Vec<Ipv6Addr> = message
+        .chunks(PAYLOAD_PER_PACKET)
+        .enumerate()
+        .map(|(seq, chunk)| encode_dst(CIDR, seq as u8, chunk))
+        .collect();
+    assert_eq!(dsts.len(), TOTAL_PACKETS);
 
-    let text = capture_with(CIDR, |socket| {
-        for (seq, chunk) in chunks.iter().enumerate() {
-            send_to(socket, encode_dst(CIDR, seq as u8, chunk));
-        }
+    let text = capture_with(CIDR, || {
+        send_raw(&dsts);
     });
 
     let expected = format!(
@@ -70,11 +69,12 @@ fn decodes_ten_packet_message() {
 fn decodes_out_of_order_packets() {
     const CIDR: &str = "2001:db8:4::/64";
 
-    let text = capture_with(CIDR, |socket| {
-        // Send packets out of order: seq 2, seq 0, seq 1
-        send_to(socket, encode_dst(CIDR, 2, b"world")); // terminator (len < 6)
-        send_to(socket, encode_dst(CIDR, 0, b"hello "));
-        send_to(socket, encode_dst(CIDR, 1, b"cruel "));
+    let text = capture_with(CIDR, || {
+        send_raw(&[
+            encode_dst(CIDR, 2, b"world"), // terminator (len < 6)
+            encode_dst(CIDR, 0, b"hello "),
+            encode_dst(CIDR, 1, b"cruel "),
+        ]);
     });
 
     assert!(
@@ -87,11 +87,9 @@ fn decodes_out_of_order_packets() {
 fn incomplete_message_produces_no_output() {
     const CIDR: &str = "2001:db8:5::/64";
 
-    let text = capture_with(CIDR, |socket| {
+    let text = capture_with(CIDR, || {
         // Send terminator (seq 2) but missing seq 1 - message incomplete
-        send_to(socket, encode_dst(CIDR, 2, b"end")); // terminator
-        send_to(socket, encode_dst(CIDR, 0, b"start "));
-        // seq 1 never sent
+        send_raw(&[encode_dst(CIDR, 2, b"end"), encode_dst(CIDR, 0, b"start ")]);
     });
 
     assert!(

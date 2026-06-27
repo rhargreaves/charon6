@@ -2,7 +2,7 @@
 
 [![Build & Test](https://github.com/rhargreaves/charon6/actions/workflows/build.yml/badge.svg)](https://github.com/rhargreaves/charon6/actions/workflows/build.yml)
 
-Abusing the IPv6 address space to covertly transmit data
+Abusing the IPv6 address space to transmit data where the payload is encoded into the IPv6 destination addresses of empty UDP packets, rather than the packets themselves.
 
 ## Usage
 
@@ -13,6 +13,8 @@ charon6 --send --cidr <IPv6 CIDR>
 ```
 
 - `--send`, `-s` — send mode: read stdin, encode to IPv6 packets.
+- `--cidr` (required) — IPv6 `/64` range used to encode/decode destination addresses.
+- `--port` — UDP port to use (default: 9999).
 
 Example:
 ```

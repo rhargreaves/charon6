@@ -19,7 +19,7 @@ charon6 lo --cidr 2001:db8::/64
 
 Decoded message bytes are written to stdout.
 
-## Example
+## Example 1 (single packet)
 
 First bind the documentation prefix `2001:db8::/64` to the loopback interface:
 ```
@@ -52,6 +52,22 @@ hi!
 src=::1 -> dst=2001:db8::9903:6869:2100:0
 hi!
 ...
+```
+
+## Example 2 (multiple packets)
+
+Sender:
+```
+echo -n x | nc -6 -u -w1 2001:db8::6:6865:6c6c:6f20 9999 && \
+echo -n x | nc -6 -u -w1 2001:db8::105:776f:726c:6400 9999
+```
+
+Receiver:
+```
+...
+src=::1 -> dst=2001:db8::6:6865:6c6c:6f20
+src=::1 -> dst=2001:db8::105:776f:726c:6400
+hello world
 ```
 
 ## Wire format

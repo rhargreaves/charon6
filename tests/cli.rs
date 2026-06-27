@@ -42,3 +42,12 @@ fn unknown_flag_exits_with_usage_error() {
 
     assert_eq!(output.status.code(), Some(2));
 }
+
+#[test]
+fn missing_required_cidr_exits_with_usage_error() {
+    let output = run(&["lo"]);
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("--cidr"));
+}

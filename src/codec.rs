@@ -44,6 +44,21 @@ mod tests {
     use super::*;
 
     #[test]
+    fn decodes_mid_message_frame_when_payload_full() {
+        let cidr: Ipv6Cidr = "2001:db8::/64".parse().unwrap();
+        let addr: Ipv6Addr = "2001:db8::0006:6865:6c6c:6f20".parse().unwrap();
+
+        let frame = decode_dst(addr, &cidr).expect("expected Ok");
+        assert_eq!(
+            frame,
+            Frame {
+                payload: b"hello ".to_vec(),
+                is_last: false,
+            }
+        );
+    }
+
+    #[test]
     fn decodes_terminator_frame() {
         let cidr: Ipv6Cidr = "2001:db8::/64".parse().unwrap();
         let addr: Ipv6Addr = "2001:db8::9903:6869:2100:0".parse().unwrap();

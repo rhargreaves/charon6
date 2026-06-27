@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::io::{Read, Write};
 use std::net::{Ipv6Addr, SocketAddrV6, UdpSocket};
 use std::process::{Command, Stdio};
 use std::thread;
@@ -79,6 +79,58 @@ pub fn capture_with(cidr: &str, send: impl FnOnce(&UdpSocket)) -> String {
         .read_to_end(&mut output)
         .expect("failed to read charon6 stdout");
     child.wait().expect("failed to reap charon6");
+
+    String::from_utf8_lossy(&output).into_owned()
+}
+
+/// Spawn a receiver and sender pair, pipe `message` into the sender,
+/// and return whatever the receiver wrote to stdout.
+pub fn send_recv(cidr: &str, message: &[u8], extra_send_args: &[&str]) -> String {
+    assert!(
+        has_net_raw(),
+        "missing CAP_NET_RAW: run via `make test` (uses sudo) or `make ci`"
+    );
+
+    let mut receiver = Command::new(env!("CARGO_BIN_EXE_charon6"))
+        .args(["--recv", "--cidr", cidr])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("failed to spawn receiver");
+
+    thread::sleep(STARTUP_DELAY);
+
+    let mut send_args = vec!["--send", "--cidr", cidr];
+    send_args.extend_from_slice(extra_send_args);
+
+    let mut sender = Command::new(env!("CARGO_BIN_EXE_charon6"))
+        .args(&send_args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("failed to spawn sender");
+
+    sender
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(message)
+        .expect("failed to write to sender stdin");
+
+    sender.wait().expect("sender failed");
+
+    thread::sleep(DRAIN_DELAY);
+    receiver.kill().expect("failed to kill receiver");
+
+    let mut output = Vec::new();
+    receiver
+        .stdout
+        .take()
+        .expect("missing stdout pipe")
+        .read_to_end(&mut output)
+        .expect("failed to read receiver stdout");
+    receiver.wait().expect("failed to reap receiver");
 
     String::from_utf8_lossy(&output).into_owned()
 }

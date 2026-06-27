@@ -57,10 +57,10 @@ mod tests {
         const CAP_NET_RAW: u32 = 13;
         let status = std::fs::read_to_string("/proc/self/status").unwrap_or_default();
         for line in status.lines() {
-            if let Some(hex) = line.strip_prefix("CapEff:") {
-                if let Ok(caps) = u64::from_str_radix(hex.trim(), 16) {
-                    return caps & (1 << CAP_NET_RAW) != 0;
-                }
+            if let Some(hex) = line.strip_prefix("CapEff:")
+                && let Ok(caps) = u64::from_str_radix(hex.trim(), 16)
+            {
+                return caps & (1 << CAP_NET_RAW) != 0;
             }
         }
         false

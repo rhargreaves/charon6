@@ -2,7 +2,11 @@
 
 [![Build & Test](https://github.com/rhargreaves/charon6/actions/workflows/build.yml/badge.svg)](https://github.com/rhargreaves/charon6/actions/workflows/build.yml)
 
-Abusing the IPv6 address space to transmit data where the payload is encoded into the IPv6 destination addresses of empty UDP packets, rather than the packets themselves.
+Abusing the IPv6 address space to transmit data covertly.
+
+## Concept
+
+Data is delivered to a IPv6 CIDR range as series of UDP datagrams, where the payload is encoded into the IPv6 destination addresses rather than as part of the datagrams themselves. When in receiving mode, `charon6` performs basic reassembly and decodes the payload from the IPv6 destination addresses.
 
 ## Usage
 

@@ -1,6 +1,6 @@
-use std::env;
-
 use charon6::{capture_loop, open_ipv6_packet_socket};
+
+use std::env;
 
 fn main() {
     #[cfg(not(target_os = "linux"))]

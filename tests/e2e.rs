@@ -19,10 +19,10 @@ fn has_net_raw() -> bool {
 
 #[test]
 fn reports_ipv6_traffic_on_loopback() {
-    if !has_net_raw() {
-        eprintln!("skipping reports_ipv6_traffic_on_loopback: missing CAP_NET_RAW");
-        return;
-    }
+    assert!(
+        has_net_raw(),
+        "missing CAP_NET_RAW: run via `make test` (uses sudo) or `make ci`"
+    );
 
     let mut child = Command::new(env!("CARGO_BIN_EXE_charon6"))
         .arg("lo")

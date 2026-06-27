@@ -50,19 +50,6 @@ pub fn parse_ipv6_endpoints(packet: &[u8]) -> Option<(Ipv6Addr, Ipv6Addr)> {
 mod tests {
     use super::*;
 
-    fn has_net_raw() -> bool {
-        const CAP_NET_RAW: u32 = 13;
-        let status = std::fs::read_to_string("/proc/self/status").unwrap_or_default();
-        for line in status.lines() {
-            if let Some(hex) = line.strip_prefix("CapEff:")
-                && let Ok(caps) = u64::from_str_radix(hex.trim(), 16)
-            {
-                return caps & (1 << CAP_NET_RAW) != 0;
-            }
-        }
-        false
-    }
-
     #[test]
     fn parses_src_and_dst_from_ipv6_header() {
         let mut packet = vec![0u8; 40];
@@ -85,19 +72,11 @@ mod tests {
 
     #[test]
     fn opens_packet_socket_on_loopback() {
-        if !has_net_raw() {
-            eprintln!("skipping opens_packet_socket_on_loopback: missing CAP_NET_RAW");
-            return;
-        }
         assert!(open_ipv6_packet_socket("lo").is_ok());
     }
 
     #[test]
     fn errors_on_nonexistent_device() {
-        if !has_net_raw() {
-            eprintln!("skipping errors_on_nonexistent_device: missing CAP_NET_RAW");
-            return;
-        }
         assert!(open_ipv6_packet_socket("no_such_dev0").is_err());
     }
 }

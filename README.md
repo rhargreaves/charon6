@@ -16,8 +16,6 @@ charon6 [device] --recv --cidr <IPv6 CIDR>
 - `--recv`, `-r` — receive mode: decode packets to stdout.
 - `--cidr` (required) — IPv6 `/64` range used to encode/decode destination addresses.
 
-Packets may arrive out of order; the receiver reassembles them using the `seq` field.
-
 ### Sending (encoding stdin to packets)
 
 ```
@@ -25,9 +23,6 @@ charon6 --send --cidr <IPv6 CIDR>
 ```
 
 - `--send`, `-s` — send mode: read stdin, encode to IPv6 packets.
-
-Reads all of stdin, splits into 6-byte chunks, and sends each as a UDP packet
-to an address within the CIDR range.
 
 ## Example
 

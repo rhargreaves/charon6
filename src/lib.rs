@@ -82,4 +82,13 @@ mod tests {
         }
         assert!(open_ipv6_packet_socket("lo").is_ok());
     }
+
+    #[test]
+    fn errors_on_nonexistent_device() {
+        if !has_net_raw() {
+            eprintln!("skipping errors_on_nonexistent_device: missing CAP_NET_RAW");
+            return;
+        }
+        assert!(open_ipv6_packet_socket("no_such_dev0").is_err());
+    }
 }

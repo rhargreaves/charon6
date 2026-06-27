@@ -1,3 +1,4 @@
+use std::fmt;
 use std::net::Ipv6Addr;
 use std::os::fd::OwnedFd;
 use std::str::FromStr;
@@ -22,6 +23,12 @@ impl Ipv6Cidr {
         } else {
             u128::MAX << (IPV6_BITS - self.prefix_len)
         }
+    }
+}
+
+impl fmt::Display for Ipv6Cidr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}/{}", self.network, self.prefix_len)
     }
 }
 
@@ -57,14 +64,16 @@ pub fn open_ipv6_packet_socket(device: &str) -> nix::Result<OwnedFd> {
     Ok(fd)
 }
 
-pub fn capture_loop(fd: &OwnedFd) -> nix::Result<()> {
+pub fn capture_loop(fd: &OwnedFd, filter: Option<&Ipv6Cidr>) -> nix::Result<()> {
     use nix::sys::socket::{MsgFlags, recv};
     use std::os::fd::AsRawFd;
 
     let mut buf = vec![0u8; 65536];
     loop {
         let n = recv(fd.as_raw_fd(), &mut buf, MsgFlags::empty())?;
-        if let Some((src, dst)) = parse_ipv6_endpoints(&buf[..n]) {
+        if let Some((src, dst)) = parse_ipv6_endpoints(&buf[..n])
+            && endpoint_in_filter(filter, src, dst)
+        {
             println!("src={src} -> dst={dst}");
         }
     }

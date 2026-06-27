@@ -44,6 +44,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn rejects_address_outside_cidr() {
+        let cidr: Ipv6Cidr = "2001:db8::/64".parse().unwrap();
+        let addr: Ipv6Addr = "fe80::1".parse().unwrap();
+
+        assert_eq!(decode_dst(addr, &cidr), Err(DecodeError::OutOfCidr));
+    }
+
+    #[test]
     fn decodes_mid_message_frame_when_payload_full() {
         let cidr: Ipv6Cidr = "2001:db8::/64".parse().unwrap();
         let addr: Ipv6Addr = "2001:db8::0006:6865:6c6c:6f20".parse().unwrap();

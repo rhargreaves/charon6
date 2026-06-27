@@ -6,8 +6,11 @@ use std::thread;
 use std::time::Duration;
 
 const TEST_CIDR: &str = "2001:db8::/64";
+const STARTUP_DELAY: Duration = Duration::from_millis(500);
+const SEND_INTERVAL: Duration = Duration::from_millis(80);
+const DRAIN_DELAY: Duration = Duration::from_millis(300);
+const DST_PORT: u16 = 9999;
 
-/// e2e tests share the loopback interface; serialize so captures don't interleave.
 fn loopback_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))
@@ -41,8 +44,16 @@ fn encode_dst(seq: u8, payload: &[u8]) -> Ipv6Addr {
     Ipv6Addr::from(bytes)
 }
 
-#[test]
-fn decodes_hello_world_from_literal_destinations() {
+fn send_to(socket: &UdpSocket, dst: Ipv6Addr) {
+    socket
+        .send_to(b"x", SocketAddrV6::new(dst, DST_PORT, 0, 0))
+        .unwrap_or_else(|e| panic!("send_to {dst}: {e}"));
+    thread::sleep(SEND_INTERVAL);
+}
+
+/// Run charon6 against `lo` decoding `cidr`, invoke `send` to emit packets,
+/// then return whatever the binary wrote to stdout.
+fn capture_with(cidr: &str, send: impl FnOnce(&UdpSocket)) -> String {
     assert!(
         has_net_raw(),
         "missing CAP_NET_RAW: run via `make test` (uses sudo) or `make ci`"
@@ -50,25 +61,18 @@ fn decodes_hello_world_from_literal_destinations() {
     let _guard = loopback_lock();
 
     let mut child = Command::new(env!("CARGO_BIN_EXE_charon6"))
-        .args(["lo", "--cidr", TEST_CIDR])
+        .args(["lo", "--cidr", cidr])
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
         .expect("failed to spawn charon6");
 
-    thread::sleep(Duration::from_millis(500));
+    thread::sleep(STARTUP_DELAY);
 
     let socket = UdpSocket::bind("[::1]:0").expect("failed to bind loopback UDP socket");
-    for dst in ["2001:db8::6:6865:6c6c:6f20", "2001:db8::105:776f:726c:6400"] {
-        let addr: Ipv6Addr = dst.parse().expect("invalid destination address");
-        let target = SocketAddrV6::new(addr, 9999, 0, 0);
-        socket
-            .send_to(b"x", target)
-            .unwrap_or_else(|e| panic!("send_to {dst}: {e}"));
-        thread::sleep(Duration::from_millis(80));
-    }
+    send(&socket);
 
-    thread::sleep(Duration::from_millis(300));
+    thread::sleep(DRAIN_DELAY);
     child.kill().expect("failed to kill charon6");
 
     let mut output = Vec::new();
@@ -78,10 +82,20 @@ fn decodes_hello_world_from_literal_destinations() {
         .expect("missing stdout pipe")
         .read_to_end(&mut output)
         .expect("failed to read charon6 stdout");
-
     child.wait().expect("failed to reap charon6");
 
-    let text = String::from_utf8_lossy(&output);
+    String::from_utf8_lossy(&output).into_owned()
+}
+
+#[test]
+fn decodes_hello_world_from_literal_destinations() {
+    let text = capture_with(TEST_CIDR, |socket| {
+        for dst in ["2001:db8::6:6865:6c6c:6f20", "2001:db8::105:776f:726c:6400"] {
+            let addr: Ipv6Addr = dst.parse().expect("invalid destination address");
+            send_to(socket, addr);
+        }
+    });
+
     assert!(
         text.contains("hello world\n"),
         "expected decoded message on stdout, got: {text:?}"
@@ -90,49 +104,14 @@ fn decodes_hello_world_from_literal_destinations() {
 
 #[test]
 fn decodes_message_from_destination_addresses() {
-    assert!(
-        has_net_raw(),
-        "missing CAP_NET_RAW: run via `make test` (uses sudo) or `make ci`"
-    );
-    let _guard = loopback_lock();
+    let chunks: [(u8, &[u8]); 3] = [(0, b"hello "), (1, b"world!"), (2, b"")];
 
-    let mut child = Command::new(env!("CARGO_BIN_EXE_charon6"))
-        .args(["lo", "--cidr", TEST_CIDR])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .expect("failed to spawn charon6");
+    let text = capture_with(TEST_CIDR, |socket| {
+        for (seq, payload) in chunks {
+            send_to(socket, encode_dst(seq, payload));
+        }
+    });
 
-    thread::sleep(Duration::from_millis(500));
-
-    let socket = UdpSocket::bind("[::1]:0").expect("failed to bind loopback UDP socket");
-    for (seq, chunk) in [(0u8, b"hello " as &[u8]), (1, b"world!"), (2, b"")]
-        .into_iter()
-        .enumerate()
-        .map(|(i, (_, c))| (i as u8, c))
-    {
-        let dst = encode_dst(seq, chunk);
-        let target = SocketAddrV6::new(dst, 9999, 0, 0);
-        socket
-            .send_to(b"x", target)
-            .unwrap_or_else(|e| panic!("send_to {dst}: {e}"));
-        thread::sleep(Duration::from_millis(80));
-    }
-
-    thread::sleep(Duration::from_millis(300));
-    child.kill().expect("failed to kill charon6");
-
-    let mut output = Vec::new();
-    child
-        .stdout
-        .take()
-        .expect("missing stdout pipe")
-        .read_to_end(&mut output)
-        .expect("failed to read charon6 stdout");
-
-    child.wait().expect("failed to reap charon6");
-
-    let text = String::from_utf8_lossy(&output);
     assert!(
         text.contains("hello world!\n"),
         "expected decoded message on stdout, got: {text:?}"

@@ -18,19 +18,6 @@ fn loopback_lock() -> MutexGuard<'static, ()> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
-fn has_net_raw() -> bool {
-    const CAP_NET_RAW: u32 = 13;
-    let status = std::fs::read_to_string("/proc/self/status").unwrap_or_default();
-    for line in status.lines() {
-        if let Some(hex) = line.strip_prefix("CapEff:")
-            && let Ok(caps) = u64::from_str_radix(hex.trim(), 16)
-        {
-            return caps & (1 << CAP_NET_RAW) != 0;
-        }
-    }
-    false
-}
-
 fn encode_dst(seq: u8, payload: &[u8]) -> Ipv6Addr {
     assert!(payload.len() <= 6);
     let mut host = [0u8; 8];
@@ -54,10 +41,6 @@ fn send_to(socket: &UdpSocket, dst: Ipv6Addr) {
 /// Run charon6 against `lo` decoding `cidr`, invoke `send` to emit packets,
 /// then return whatever the binary wrote to stdout.
 fn capture_with(cidr: &str, send: impl FnOnce(&UdpSocket)) -> String {
-    assert!(
-        has_net_raw(),
-        "missing CAP_NET_RAW: run via `make test` (uses sudo) or `make ci`"
-    );
     let _guard = loopback_lock();
 
     let mut child = Command::new(env!("CARGO_BIN_EXE_charon6"))
@@ -88,7 +71,19 @@ fn capture_with(cidr: &str, send: impl FnOnce(&UdpSocket)) -> String {
 }
 
 #[test]
-fn decodes_hello_world_from_literal_destinations() {
+fn decodes_single_packet_message() {
+    let text = capture_with(TEST_CIDR, |socket| {
+        send_to(socket, encode_dst(0, b"hi!"));
+    });
+
+    assert!(
+        text.contains("hi!\n"),
+        "expected decoded message on stdout, got: {text:?}"
+    );
+}
+
+#[test]
+fn decodes_two_packet_message() {
     let text = capture_with(TEST_CIDR, |socket| {
         for dst in ["2001:db8::6:6865:6c6c:6f20", "2001:db8::105:776f:726c:6400"] {
             let addr: Ipv6Addr = dst.parse().expect("invalid destination address");
@@ -103,17 +98,28 @@ fn decodes_hello_world_from_literal_destinations() {
 }
 
 #[test]
-fn decodes_message_from_destination_addresses() {
-    let chunks: [(u8, &[u8]); 3] = [(0, b"hello "), (1, b"world!"), (2, b"")];
+fn decodes_ten_packet_message() {
+    const TOTAL_PACKETS: usize = 10;
+    const PAYLOAD_PER_PACKET: usize = 6;
+    // 9 full packets + a 1-byte terminator = 10 packets total.
+    const MESSAGE_LEN: usize = (TOTAL_PACKETS - 1) * PAYLOAD_PER_PACKET + 1;
+
+    let message: Vec<u8> = (0..MESSAGE_LEN).map(|i| b'a' + (i as u8 % 26)).collect();
+    let chunks: Vec<&[u8]> = message.chunks(PAYLOAD_PER_PACKET).collect();
+    assert_eq!(chunks.len(), TOTAL_PACKETS);
 
     let text = capture_with(TEST_CIDR, |socket| {
-        for (seq, payload) in chunks {
-            send_to(socket, encode_dst(seq, payload));
+        for (seq, chunk) in chunks.iter().enumerate() {
+            send_to(socket, encode_dst(seq as u8, chunk));
         }
     });
 
+    let expected = format!(
+        "{}\n",
+        std::str::from_utf8(&message).expect("message is ASCII")
+    );
     assert!(
-        text.contains("hello world!\n"),
+        text.contains(&expected),
         "expected decoded message on stdout, got: {text:?}"
     );
 }

@@ -1,5 +1,46 @@
 use std::net::Ipv6Addr;
 use std::os::fd::OwnedFd;
+use std::str::FromStr;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Ipv6Cidr {
+    network: Ipv6Addr,
+    prefix_len: u8,
+}
+
+const IPV6_BITS: u8 = 128;
+
+impl Ipv6Cidr {
+    pub fn contains(&self, address: Ipv6Addr) -> bool {
+        let mask = self.mask();
+        (u128::from(address) & mask) == (u128::from(self.network) & mask)
+    }
+
+    fn mask(&self) -> u128 {
+        if self.prefix_len == 0 {
+            0
+        } else {
+            u128::MAX << (IPV6_BITS - self.prefix_len)
+        }
+    }
+}
+
+impl FromStr for Ipv6Cidr {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (address, prefix) = s.split_once('/').ok_or(())?;
+        let network = address.parse::<Ipv6Addr>().map_err(|_| ())?;
+        let prefix_len = prefix.parse::<u8>().map_err(|_| ())?;
+        if prefix_len > IPV6_BITS {
+            return Err(());
+        }
+        Ok(Ipv6Cidr {
+            network,
+            prefix_len,
+        })
+    }
+}
 
 pub fn open_ipv6_packet_socket(device: &str) -> nix::Result<OwnedFd> {
     use nix::sys::socket::{
@@ -49,6 +90,13 @@ pub fn parse_ipv6_endpoints(packet: &[u8]) -> Option<(Ipv6Addr, Ipv6Addr)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cidr_contains_address_within_prefix() {
+        let cidr: Ipv6Cidr = "2001:db8::/32".parse().unwrap();
+        assert!(cidr.contains("2001:db8::1".parse().unwrap()));
+        assert!(!cidr.contains("2001:db9::1".parse().unwrap()));
+    }
 
     #[test]
     fn parses_src_and_dst_from_ipv6_header() {

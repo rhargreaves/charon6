@@ -70,6 +70,10 @@ pub fn capture_loop(fd: &OwnedFd) -> nix::Result<()> {
     }
 }
 
+pub fn endpoint_in_filter(filter: Option<&Ipv6Cidr>, _src: Ipv6Addr, _dst: Ipv6Addr) -> bool {
+    filter.is_none()
+}
+
 pub fn parse_ipv6_endpoints(packet: &[u8]) -> Option<(Ipv6Addr, Ipv6Addr)> {
     const IPV6_HEADER_LEN: usize = 40;
     const IP_VERSION_MASK: u8 = 0xF0;
@@ -96,6 +100,13 @@ mod tests {
         let cidr: Ipv6Cidr = "2001:db8::/32".parse().unwrap();
         assert!(cidr.contains("2001:db8::1".parse().unwrap()));
         assert!(!cidr.contains("2001:db9::1".parse().unwrap()));
+    }
+
+    #[test]
+    fn filter_matches_all_when_no_cidr() {
+        let src = "2001:db8::1".parse().unwrap();
+        let dst = "fe80::1".parse().unwrap();
+        assert!(endpoint_in_filter(None, src, dst));
     }
 
     #[test]

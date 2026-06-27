@@ -17,6 +17,9 @@ struct Args {
 
     #[arg(short, long, help = "Receive mode: decode packets to stdout")]
     recv: bool,
+
+    #[arg(short, long, default_value = "9999", help = "UDP destination port")]
+    port: u16,
 }
 
 fn main() {
@@ -31,13 +34,13 @@ fn main() {
     }
 
     if args.send {
-        run_send(&args.cidr);
+        run_send(&args.cidr, args.port);
     } else {
         run_recv(&args.cidr);
     }
 }
 
-fn run_send(cidr: &Ipv6Cidr) {
+fn run_send(cidr: &Ipv6Cidr, port: u16) {
     use std::io::Read;
 
     let mut input = Vec::new();
@@ -46,7 +49,7 @@ fn run_send(cidr: &Ipv6Cidr) {
         std::process::exit(1);
     }
 
-    if let Err(err) = send_message(cidr, &input) {
+    if let Err(err) = send_message(cidr, &input, port) {
         eprintln!("send error: {err}");
         std::process::exit(1);
     }

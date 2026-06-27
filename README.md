@@ -12,7 +12,7 @@ Abusing the IPv6 address space to covertly transmit data
 charon6 --recv --cidr <IPv6 CIDR>
 ```
 
-- `--recv`, `-r` — receive mode: decode packets to stdout (listens on all interfaces).
+- `--recv`, `-r` — receive mode: decode packets to stdout.
 - `--cidr` (required) — IPv6 `/64` range used to encode/decode destination addresses.
 
 ### Sending (encoding stdin to packets)

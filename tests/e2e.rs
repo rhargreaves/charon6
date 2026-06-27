@@ -150,3 +150,52 @@ fn send_mode_encodes_stdin_to_packets() {
         "expected decoded message, got: {text:?}"
     );
 }
+
+#[test]
+fn send_mode_uses_custom_port() {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    const CIDR: &str = "2001:db8:7::/64";
+    const MESSAGE: &[u8] = b"port!";
+
+    let mut receiver = Command::new(env!("CARGO_BIN_EXE_charon6"))
+        .args(["--recv", "--cidr", CIDR])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("failed to spawn receiver");
+
+    std::thread::sleep(std::time::Duration::from_millis(500));
+
+    let mut sender = Command::new(env!("CARGO_BIN_EXE_charon6"))
+        .args(["--send", "--cidr", CIDR, "--port", "7777"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("failed to spawn sender");
+
+    sender
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(MESSAGE)
+        .expect("failed to write to sender stdin");
+
+    sender.wait().expect("sender failed");
+
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    receiver.kill().expect("failed to kill receiver");
+
+    let mut output = Vec::new();
+    std::io::Read::read_to_end(&mut receiver.stdout.take().unwrap(), &mut output)
+        .expect("failed to read receiver stdout");
+    receiver.wait().expect("failed to reap receiver");
+
+    let text = String::from_utf8_lossy(&output);
+    assert!(
+        text.contains("port!\n"),
+        "expected decoded message with custom port, got: {text:?}"
+    );
+}

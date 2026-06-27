@@ -1,16 +1,9 @@
-//! End-to-end smoke test: spawn the built binary, generate IPv6 loopback
-//! traffic, and assert that it reports the captured source/destination.
-//!
-//! Requires CAP_NET_RAW (run via `sudo -E $(which cargo) test`). When the
-//! capability is absent the test skips so the suite stays green unprivileged.
-
 use std::io::Read;
 use std::net::{Ipv6Addr, SocketAddrV6, UdpSocket};
 use std::process::{Command, Stdio};
 use std::thread;
 use std::time::Duration;
 
-/// Returns true if the current process holds CAP_NET_RAW in its effective set.
 fn has_net_raw() -> bool {
     const CAP_NET_RAW: u32 = 13;
     let status = std::fs::read_to_string("/proc/self/status").unwrap_or_default();
@@ -38,11 +31,8 @@ fn reports_ipv6_traffic_on_loopback() {
         .spawn()
         .expect("failed to spawn charon6");
 
-    // Give the binary time to open and bind the socket before sending traffic.
     thread::sleep(Duration::from_millis(500));
 
-    // Emit a few IPv6 packets on the loopback. No listener is needed: the
-    // AF_PACKET socket observes the outgoing datagrams regardless.
     let socket = UdpSocket::bind("[::1]:0").expect("failed to bind loopback UDP socket");
     let dst = SocketAddrV6::new(Ipv6Addr::LOCALHOST, 9999, 0, 0);
     for _ in 0..5 {
@@ -50,7 +40,6 @@ fn reports_ipv6_traffic_on_loopback() {
         thread::sleep(Duration::from_millis(50));
     }
 
-    // Allow the capture loop to drain, then stop the binary.
     thread::sleep(Duration::from_millis(200));
     child.kill().expect("failed to kill charon6");
 

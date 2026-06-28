@@ -1,34 +1,15 @@
 use cipher::{BlockCipherDecrypt, BlockCipherEncrypt, KeyInit};
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Cipher([u8; 16]);
+use sha2::{Digest, Sha256};
 
 const KEY_LEN: usize = 16;
-const FOLD_MULTIPLIER: u8 = 0x9B;
-const FOLD_ROTATION: u32 = 3;
-const MIX_OFFSET: usize = 7;
-const MIX_MULTIPLIER: u8 = 0x6D;
-const MIX_ROTATION: u32 = 5;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Cipher([u8; KEY_LEN]);
 
 impl Cipher {
-    // Ad-hoc KDF — not a standard like PBKDF2. Suitable for obfuscation, not
-    // high-security key derivation.
     pub fn from_passphrase(passphrase: &str) -> Self {
-        let bytes = passphrase.as_bytes();
-        let mut key = [0u8; KEY_LEN];
-        for (i, &b) in bytes.iter().enumerate() {
-            key[i % KEY_LEN] = key[i % KEY_LEN]
-                .wrapping_add(b)
-                .wrapping_mul(FOLD_MULTIPLIER)
-                .rotate_left(FOLD_ROTATION);
-        }
-        for i in 0..KEY_LEN {
-            key[i] = key[i]
-                .wrapping_add(key[(i + MIX_OFFSET) % KEY_LEN])
-                .wrapping_mul(MIX_MULTIPLIER)
-                .rotate_left(MIX_ROTATION);
-        }
-        Self(key)
+        let hash = Sha256::digest(passphrase.as_bytes());
+        Self(hash[..KEY_LEN].try_into().unwrap())
     }
 
     pub fn encrypt(&self, block: &[u8; 8]) -> [u8; 8] {

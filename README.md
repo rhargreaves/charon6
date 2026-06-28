@@ -6,7 +6,7 @@ Abusing the IPv6 address space to transmit data covertly.
 
 ## Concept
 
-Data is encoded into IPv6 destination addresses and sent as ICMPv6 echo requests (ping) by default, or optionally as UDP datagrams. The payload lives entirely in the destination address — packet bodies are empty. The receiver captures raw packets and decodes the destination addresses, reassembling out-of-order packets.
+Data is encoded into IPv6 destination addresses and in the form of a series of ICMPv6 echoes or UDP datagrams. The payload lives entirely in the destination address. The receiver captures raw packets and decodes the destination addresses, reassembling out-of-order packets.
 
 ## Usage
 
@@ -20,8 +20,7 @@ charon6 --send --cidr <IPv6 CIDR>
 - `--cidr` (required) — IPv6 `/64` range used to encode/decode destination addresses.
 - `--port <N>` — send via UDP to this port instead of ICMP.
 
-By default, packets are sent as ICMPv6 echo requests (ping). Specify `--port`
-to use UDP instead.
+By default, packets are sent as ICMPv6 echo requests. Specify `--port` to use UDP instead.
 
 Examples:
 ```

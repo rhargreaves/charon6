@@ -3,7 +3,7 @@ use std::os::fd::OwnedFd;
 
 use crate::cidr::Ipv6Cidr;
 use crate::codec::{DecodeError, Reassembler, decode_dst};
-use crate::packet::parse_ipv6_endpoints;
+use crate::packet::{PROTO_ICMPV6, PROTO_UDP, parse_ipv6_packet};
 
 pub fn open_ipv6_packet_socket() -> nix::Result<OwnedFd> {
     use nix::sys::socket::{AddressFamily, SockFlag, SockProtocol, SockType, socket};
@@ -16,7 +16,7 @@ pub fn open_ipv6_packet_socket() -> nix::Result<OwnedFd> {
     )
 }
 
-pub fn capture_loop(fd: &OwnedFd, cidr: &Ipv6Cidr) -> nix::Result<()> {
+pub fn capture_loop(fd: &OwnedFd, cidr: &Ipv6Cidr, port: Option<u16>) -> nix::Result<()> {
     use nix::sys::socket::{MsgFlags, recv};
     use std::os::fd::AsRawFd;
 
@@ -25,14 +25,27 @@ pub fn capture_loop(fd: &OwnedFd, cidr: &Ipv6Cidr) -> nix::Result<()> {
     let stdout = std::io::stdout();
     loop {
         let n = recv(fd.as_raw_fd(), &mut buf, MsgFlags::empty())?;
-        let Some((src, dst)) = parse_ipv6_endpoints(&buf[..n]) else {
+        let Some(info) = parse_ipv6_packet(&buf[..n]) else {
             eprintln!("dropped: malformed IPv6 header");
             continue;
         };
 
-        match decode_dst(dst, cidr) {
+        match port {
+            None => {
+                if info.next_header != PROTO_ICMPV6 {
+                    continue;
+                }
+            }
+            Some(p) => {
+                if info.next_header != PROTO_UDP || info.udp_dst_port != Some(p) {
+                    continue;
+                }
+            }
+        }
+
+        match decode_dst(info.dst, cidr) {
             Ok(frame) => {
-                eprintln!("src={src} -> dst={dst}");
+                eprintln!("src={} -> dst={}", info.src, info.dst);
                 reassembler.push(frame);
                 if let Some(message) = reassembler.take() {
                     let mut out = stdout.lock();
@@ -43,8 +56,8 @@ pub fn capture_loop(fd: &OwnedFd, cidr: &Ipv6Cidr) -> nix::Result<()> {
             }
             Err(DecodeError::OutOfCidr) => {}
             Err(DecodeError::InvalidLen(len)) => {
-                eprintln!("src={src} -> dst={dst}");
-                eprintln!("dropped: invalid len={len} from {dst}");
+                eprintln!("src={} -> dst={}", info.src, info.dst);
+                eprintln!("dropped: invalid len={len} from {}", info.dst);
             }
         }
     }

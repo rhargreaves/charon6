@@ -2,13 +2,13 @@ mod common;
 
 use std::net::Ipv6Addr;
 
-use common::{capture_with, encode_dst, send_raw, send_recv};
+use common::{capture_with, capture_with_args, encode_dst, send_raw, send_recv};
 
 #[test]
 fn decodes_single_packet_message() {
     const CIDR: &str = "2001:db8:1::/64";
 
-    let text = capture_with(CIDR, || {
+    let text = capture_with_args(CIDR, &["--port", "9999"], || {
         send_raw(&[encode_dst(CIDR, 0, b"hi!")]);
     });
 
@@ -22,7 +22,7 @@ fn decodes_single_packet_message() {
 fn decodes_two_packet_message() {
     const CIDR: &str = "2001:db8:2::/64";
 
-    let text = capture_with(CIDR, || {
+    let text = capture_with_args(CIDR, &["--port", "9999"], || {
         send_raw(&[
             "2001:db8:2::6:6865:6c6c:6f20".parse().unwrap(),
             "2001:db8:2::105:776f:726c:6400".parse().unwrap(),
@@ -51,7 +51,7 @@ fn decodes_ten_packet_message() {
         .collect();
     assert_eq!(dsts.len(), TOTAL_PACKETS);
 
-    let text = capture_with(CIDR, || {
+    let text = capture_with_args(CIDR, &["--port", "9999"], || {
         send_raw(&dsts);
     });
 
@@ -69,7 +69,7 @@ fn decodes_ten_packet_message() {
 fn decodes_out_of_order_packets() {
     const CIDR: &str = "2001:db8:4::/64";
 
-    let text = capture_with(CIDR, || {
+    let text = capture_with_args(CIDR, &["--port", "9999"], || {
         send_raw(&[
             encode_dst(CIDR, 2, b"world"), // terminator (len < 6)
             encode_dst(CIDR, 0, b"hello "),
@@ -87,7 +87,7 @@ fn decodes_out_of_order_packets() {
 fn incomplete_message_produces_no_output() {
     const CIDR: &str = "2001:db8:5::/64";
 
-    let text = capture_with(CIDR, || {
+    let text = capture_with_args(CIDR, &["--port", "9999"], || {
         // Send terminator (seq 2) but missing seq 1 - message incomplete
         send_raw(&[encode_dst(CIDR, 2, b"end"), encode_dst(CIDR, 0, b"start ")]);
     });
@@ -128,5 +128,20 @@ fn send_mode_defaults_to_icmp() {
     assert!(
         text.contains("ping!\n"),
         "expected decoded message via ICMP, got: {text:?}"
+    );
+}
+
+#[test]
+fn recv_icmp_mode_ignores_udp_packets() {
+    const CIDR: &str = "2001:db8:9::/64";
+
+    // Receiver has no --port, so it should only accept ICMP
+    let text = capture_with(CIDR, || {
+        send_raw(&[encode_dst(CIDR, 0, b"nope!")]);
+    });
+
+    assert!(
+        text.is_empty(),
+        "expected no output from UDP when receiver is in ICMP mode, got: {text:?}"
     );
 }

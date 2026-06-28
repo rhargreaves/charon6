@@ -48,19 +48,22 @@ pub fn send_raw(destinations: &[Ipv6Addr]) {
     }
 }
 
-/// Start a charon6 receiver for `cidr`, run `action`, then kill the
-/// receiver and return whatever it wrote to stdout.
+/// Start a charon6 receiver for `cidr` with optional extra args, run
+/// `action`, then kill the receiver and return whatever it wrote to stdout.
 ///
 /// Tests should pass distinct CIDRs so they can run in parallel without
 /// capturing each other's traffic.
-pub fn capture_with(cidr: &str, action: impl FnOnce()) -> String {
+pub fn capture_with_args(cidr: &str, extra_recv_args: &[&str], action: impl FnOnce()) -> String {
     assert!(
         has_net_raw(),
         "missing CAP_NET_RAW: run via `make test` (uses sudo) or `make ci`"
     );
 
+    let mut recv_args = vec!["--cidr", cidr];
+    recv_args.extend_from_slice(extra_recv_args);
+
     let mut child = Command::new(env!("CARGO_BIN_EXE_charon6"))
-        .args(["--cidr", cidr])
+        .args(&recv_args)
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
@@ -85,8 +88,15 @@ pub fn capture_with(cidr: &str, action: impl FnOnce()) -> String {
     String::from_utf8_lossy(&output).into_owned()
 }
 
+pub fn capture_with(cidr: &str, action: impl FnOnce()) -> String {
+    capture_with_args(cidr, &[], action)
+}
+
 /// Spawn a receiver and sender pair, pipe `message` into the sender,
 /// and return whatever the receiver wrote to stdout.
+///
+/// The receiver gets `--port` from `extra_send_args` if present, so both
+/// sides use the same transport.
 pub fn send_recv(cidr: &str, message: &[u8], extra_send_args: &[&str]) -> String {
     let message = message.to_vec();
     let mut send_args: Vec<String> = ["--send", "--cidr", cidr]
@@ -95,7 +105,11 @@ pub fn send_recv(cidr: &str, message: &[u8], extra_send_args: &[&str]) -> String
         .collect();
     send_args.extend(extra_send_args.iter().map(|s| s.to_string()));
 
-    capture_with(cidr, move || {
+    // Mirror --port to receiver so both sides use the same transport
+    let extra_recv_args: Vec<String> = extra_send_args.iter().map(|s| s.to_string()).collect();
+    let extra_recv_refs: Vec<&str> = extra_recv_args.iter().map(|s| s.as_str()).collect();
+
+    capture_with_args(cidr, &extra_recv_refs, move || {
         let mut sender = Command::new(env!("CARGO_BIN_EXE_charon6"))
             .args(&send_args)
             .stdin(Stdio::piped())

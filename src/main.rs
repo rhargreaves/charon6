@@ -36,7 +36,7 @@ fn main() {
     if args.send {
         run_send(&args.cidr, args.port);
     } else {
-        run_recv(&args.cidr);
+        run_recv(&args.cidr, args.port);
     }
 }
 
@@ -55,7 +55,7 @@ fn run_send(cidr: &Ipv6Cidr, port: Option<u16>) {
     }
 }
 
-fn run_recv(cidr: &Ipv6Cidr) {
+fn run_recv(cidr: &Ipv6Cidr, port: Option<u16>) {
     eprintln!("charon6 started");
 
     let fd = match open_ipv6_packet_socket() {
@@ -66,9 +66,12 @@ fn run_recv(cidr: &Ipv6Cidr) {
         }
     };
 
-    eprintln!("Listening for IPv6 packets, decoding {cidr}...");
+    match port {
+        Some(p) => eprintln!("Listening for UDP/{p} packets, decoding {cidr}..."),
+        None => eprintln!("Listening for ICMPv6 packets, decoding {cidr}..."),
+    }
 
-    if let Err(err) = capture_loop(&fd, cidr) {
+    if let Err(err) = capture_loop(&fd, cidr, port) {
         eprintln!("capture error: {err}");
         std::process::exit(1);
     }

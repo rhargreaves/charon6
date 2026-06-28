@@ -42,7 +42,7 @@ pub fn send_raw(destinations: &[Ipv6Addr]) {
     let socket = UdpSocket::bind("[::1]:0").expect("failed to bind loopback UDP socket");
     for dst in destinations {
         socket
-            .send_to(b"x", SocketAddrV6::new(*dst, DST_PORT, 0, 0))
+            .send_to(b"", SocketAddrV6::new(*dst, DST_PORT, 0, 0))
             .unwrap_or_else(|e| panic!("send_to {dst}: {e}"));
         thread::sleep(SEND_INTERVAL);
     }

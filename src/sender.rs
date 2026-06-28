@@ -15,13 +15,13 @@ pub fn send_message(cidr: &Ipv6Cidr, message: &[u8], port: u16) -> io::Result<()
     for (seq, chunk) in chunks.iter().enumerate() {
         let dst = encode_dst(cidr, seq as u8, chunk);
         let addr = SocketAddrV6::new(dst, port, 0, 0);
-        socket.send_to(b"x", addr)?;
+        socket.send_to(b"", addr)?;
     }
 
     if message.is_empty() || message.len().is_multiple_of(MAX_PAYLOAD_PER_PACKET) {
         let dst = encode_dst(cidr, total as u8, &[]);
         let addr = SocketAddrV6::new(dst, port, 0, 0);
-        socket.send_to(b"x", addr)?;
+        socket.send_to(b"", addr)?;
     }
 
     Ok(())

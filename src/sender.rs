@@ -9,13 +9,15 @@ fn nix_to_io(err: nix::Error) -> io::Error {
     io::Error::from_raw_os_error(err as i32)
 }
 
+const MAX_PACKETS: usize = u8::MAX as usize + 1;
+
 pub fn send_message(
     cidr: &Ipv6Cidr,
     message: &[u8],
     transport: &Transport,
     key: Option<crate::xtea::XteaKey>,
 ) -> io::Result<()> {
-    let destinations = encode_message(cidr, message, key.as_ref());
+    let destinations = encode_message(cidr, message, key.as_ref())?;
     match transport {
         Transport::Udp(port) => send_udp(&destinations, *port),
         Transport::Icmp => send_icmp(&destinations),
@@ -26,21 +28,30 @@ fn encode_message(
     cidr: &Ipv6Cidr,
     message: &[u8],
     key: Option<&crate::xtea::XteaKey>,
-) -> Vec<Ipv6Addr> {
-    let chunks: Vec<&[u8]> = message.chunks(MAX_PAYLOAD_PER_FRAME).collect();
-    let total = chunks.len().max(1);
+) -> io::Result<Vec<Ipv6Addr>> {
+    let num_chunks = message.chunks(MAX_PAYLOAD_PER_FRAME).count();
+    let needs_empty_terminator =
+        message.is_empty() || message.len().is_multiple_of(MAX_PAYLOAD_PER_FRAME);
+    let total_packets = num_chunks + needs_empty_terminator as usize;
 
-    let mut destinations: Vec<Ipv6Addr> = chunks
-        .iter()
+    if total_packets > MAX_PACKETS {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("message too large: {total_packets} packets needed, max is {MAX_PACKETS}"),
+        ));
+    }
+
+    let mut destinations: Vec<Ipv6Addr> = message
+        .chunks(MAX_PAYLOAD_PER_FRAME)
         .enumerate()
         .map(|(seq, chunk)| encode_dst(cidr, seq as u8, chunk, key))
         .collect();
 
-    if message.is_empty() || message.len().is_multiple_of(MAX_PAYLOAD_PER_FRAME) {
-        destinations.push(encode_dst(cidr, total as u8, &[], key));
+    if needs_empty_terminator {
+        destinations.push(encode_dst(cidr, num_chunks as u8, &[], key));
     }
 
-    destinations
+    Ok(destinations)
 }
 
 fn send_udp(destinations: &[Ipv6Addr], port: u16) -> io::Result<()> {
@@ -98,31 +109,47 @@ mod tests {
 
     #[test]
     fn encode_short_message_produces_single_terminator_packet() {
-        let dsts = encode_message(&cidr(), b"hi!", None);
+        let dsts = encode_message(&cidr(), b"hi!", None).unwrap();
         assert_eq!(dsts.len(), 1);
     }
 
     #[test]
     fn encode_exact_multiple_appends_empty_terminator() {
-        let dsts = encode_message(&cidr(), b"abcdef", None);
+        let dsts = encode_message(&cidr(), b"abcdef", None).unwrap();
         assert_eq!(dsts.len(), 2);
     }
 
     #[test]
     fn encode_empty_message_produces_single_empty_terminator() {
-        let dsts = encode_message(&cidr(), b"", None);
+        let dsts = encode_message(&cidr(), b"", None).unwrap();
         assert_eq!(dsts.len(), 1);
     }
 
     #[test]
     fn encode_12_bytes_produces_two_full_frames_plus_terminator() {
-        let dsts = encode_message(&cidr(), b"abcdefghijkl", None);
+        let dsts = encode_message(&cidr(), b"abcdefghijkl", None).unwrap();
         assert_eq!(dsts.len(), 3);
     }
 
     #[test]
     fn encode_7_bytes_produces_two_packets() {
-        let dsts = encode_message(&cidr(), b"abcdefg", None);
+        let dsts = encode_message(&cidr(), b"abcdefg", None).unwrap();
         assert_eq!(dsts.len(), 2);
+    }
+
+    #[test]
+    fn encode_oversized_message_returns_error() {
+        let message = vec![0u8; MAX_PACKETS * MAX_PAYLOAD_PER_FRAME + 1];
+        let result = encode_message(&cidr(), &message, None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn encode_max_size_message_succeeds() {
+        // 255 full frames + 1 terminator with 5 bytes = 1535 bytes, 256 packets
+        let message =
+            vec![0u8; (MAX_PACKETS - 1) * MAX_PAYLOAD_PER_FRAME + MAX_PAYLOAD_PER_FRAME - 1];
+        let dsts = encode_message(&cidr(), &message, None).unwrap();
+        assert_eq!(dsts.len(), MAX_PACKETS);
     }
 }

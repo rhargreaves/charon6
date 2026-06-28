@@ -6,4 +6,3 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     net-tools \
     docker.io \
     && rm -rf /var/lib/apt/lists/*
-RUN ip -6 route add local 2001:db8::/32 dev lo

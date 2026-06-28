@@ -8,8 +8,7 @@ Abusing the IPv6 address space to transmit data covertly.
 
 Data is encoded into IPv6 destination addresses and sent as ICMPv6 echo requests
 or UDP datagrams. The payload lives entirely in the destination address — packet
-bodies are empty. Optional XTEA encryption hides the sequence number, length,
-and payload from observers.
+bodies are empty. Optional encryption.
 
 ## Usage
 
@@ -22,7 +21,7 @@ charon6 --send --cidr <IPv6 CIDR>
 - `--send`, `-s` — send mode: read stdin, encode to IPv6 packets.
 - `--cidr` (required) — IPv6 `/64` range used to encode/decode destination addresses.
 - `--port <N>` — send via UDP to this port instead of ICMP.
-- `--key <passphrase>` — encrypt with XTEA (must match on receiver).
+- `--key <passphrase>` — encrypt with passphrase.
 
 By default, packets are sent as ICMPv6 echo requests. Specify `--port` to use
 UDP instead. Specify `--key` to encrypt the host portion of each address.
@@ -42,7 +41,7 @@ charon6 --recv --cidr <IPv6 CIDR>
 - `--recv`, `-r` — receive mode: decode packets to stdout.
 - `--cidr` (required) — IPv6 `/64` range used to encode/decode destination addresses.
 - `--port <N>` — listen for UDP on this port instead of ICMP.
-- `--key <passphrase>` — decrypt with XTEA (must match sender).
+- `--key <passphrase>` — decrypt with passphrase.
 
 ```
 charon6 --recv --cidr 2001:db8::/64
@@ -95,11 +94,11 @@ of its destination address. Locked to `/64`, so the host portion is 8 bytes:
 When `--key` is provided, the entire 8-byte host portion (seq, len, and
 payload) is encrypted with the XTEA block cipher before embedding in the
 destination address. The receiver decrypts each packet independently before
-reassembly. The passphrase must match on both sides.
+reassembly.
 
 ### Current limitations
 
-- No integrity check or multi-message multiplexing.
+- No integrity check.
 - XTEA-ECB: identical plaintext blocks produce identical ciphertext across
   messages (within a message, seq always differs so this does not occur).
 - Prefix is fixed at `/64`.

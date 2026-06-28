@@ -50,7 +50,7 @@ fn main() {
     }
 }
 
-fn run_send(cidr: &Ipv6Cidr, port: Option<u16>, key: Option<[u32; 4]>) {
+fn run_send(cidr: &Ipv6Cidr, port: Option<u16>, key: Option<[u8; 16]>) {
     use std::io::Read;
 
     let mut input = Vec::new();
@@ -65,7 +65,7 @@ fn run_send(cidr: &Ipv6Cidr, port: Option<u16>, key: Option<[u32; 4]>) {
     }
 }
 
-fn run_recv(cidr: &Ipv6Cidr, port: Option<u16>, key: Option<[u32; 4]>) {
+fn run_recv(cidr: &Ipv6Cidr, port: Option<u16>, key: Option<[u8; 16]>) {
     eprintln!("charon6 started");
 
     let fd = match open_ipv6_packet_socket() {

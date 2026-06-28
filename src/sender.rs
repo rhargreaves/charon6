@@ -8,7 +8,7 @@ pub fn send_message(
     cidr: &Ipv6Cidr,
     message: &[u8],
     port: Option<u16>,
-    key: Option<[u32; 4]>,
+    key: Option<[u8; 16]>,
 ) -> io::Result<()> {
     let destinations = encode_message(cidr, message, key.as_ref());
     match port {
@@ -17,7 +17,7 @@ pub fn send_message(
     }
 }
 
-fn encode_message(cidr: &Ipv6Cidr, message: &[u8], key: Option<&[u32; 4]>) -> Vec<Ipv6Addr> {
+fn encode_message(cidr: &Ipv6Cidr, message: &[u8], key: Option<&[u8; 16]>) -> Vec<Ipv6Addr> {
     let chunks: Vec<&[u8]> = message.chunks(MAX_PAYLOAD_PER_FRAME).collect();
     let total = chunks.len().max(1);
 

@@ -20,7 +20,7 @@ pub fn capture_loop(
     fd: &OwnedFd,
     cidr: &Ipv6Cidr,
     port: Option<u16>,
-    key: Option<[u32; 4]>,
+    key: Option<[u8; 16]>,
 ) -> std::io::Result<()> {
     use nix::sys::socket::{MsgFlags, recv};
     use std::os::fd::AsRawFd;

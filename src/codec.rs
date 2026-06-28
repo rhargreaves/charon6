@@ -65,7 +65,7 @@ impl Reassembler {
     }
 }
 
-pub fn encode_dst(cidr: &Ipv6Cidr, seq: u8, payload: &[u8], key: Option<&[u32; 4]>) -> Ipv6Addr {
+pub fn encode_dst(cidr: &Ipv6Cidr, seq: u8, payload: &[u8], key: Option<&[u8; 16]>) -> Ipv6Addr {
     debug_assert!(payload.len() <= MAX_PAYLOAD_PER_FRAME);
     let mut bytes = cidr.network().octets();
 
@@ -85,7 +85,7 @@ pub fn encode_dst(cidr: &Ipv6Cidr, seq: u8, payload: &[u8], key: Option<&[u32; 4
 pub fn decode_dst(
     addr: Ipv6Addr,
     cidr: &Ipv6Cidr,
-    key: Option<&[u32; 4]>,
+    key: Option<&[u8; 16]>,
 ) -> Result<Frame, DecodeError> {
     if !cidr.contains(addr) {
         return Err(DecodeError::OutOfCidr);

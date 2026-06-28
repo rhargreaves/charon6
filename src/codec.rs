@@ -120,11 +120,11 @@ pub(crate) fn decode_dst(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_helpers::{addr, cidr};
+    use crate::test_helpers::{addr, doc_cidr};
 
     #[test]
     fn rejects_len_exceeding_payload_capacity() {
-        let c = cidr("2001:db8::/64");
+        let c = doc_cidr();
         let a = addr("2001:db8::0007:0000:0000:0000");
 
         assert_eq!(decode_dst(a, &c, None), Err(DecodeError::InvalidLen(7)));
@@ -133,19 +133,15 @@ mod tests {
     #[test]
     fn rejects_address_outside_cidr() {
         assert_eq!(
-            decode_dst(addr("fe80::1"), &cidr("2001:db8::/64"), None),
+            decode_dst(addr("fe80::1"), &doc_cidr(), None),
             Err(DecodeError::OutOfCidr),
         );
     }
 
     #[test]
     fn decodes_mid_message_frame_when_payload_full() {
-        let frame = decode_dst(
-            addr("2001:db8::0006:6865:6c6c:6f20"),
-            &cidr("2001:db8::/64"),
-            None,
-        )
-        .expect("expected Ok");
+        let frame = decode_dst(addr("2001:db8::0006:6865:6c6c:6f20"), &doc_cidr(), None)
+            .expect("expected Ok");
         assert_eq!(
             frame,
             Frame {
@@ -158,12 +154,8 @@ mod tests {
 
     #[test]
     fn decodes_terminator_frame() {
-        let frame = decode_dst(
-            addr("2001:db8::9903:6869:2100:0"),
-            &cidr("2001:db8::/64"),
-            None,
-        )
-        .expect("expected Ok");
+        let frame =
+            decode_dst(addr("2001:db8::9903:6869:2100:0"), &doc_cidr(), None).expect("expected Ok");
         assert_eq!(
             frame,
             Frame {
@@ -278,7 +270,7 @@ mod tests {
 
     #[test]
     fn encode_decode_round_trip_without_encryption() {
-        let c = cidr("2001:db8::/64");
+        let c = doc_cidr();
         let a = encode_dst(&c, 3, b"test!", None);
         let frame = decode_dst(a, &c, None).unwrap();
         assert_eq!(frame.seq, 3);
@@ -288,7 +280,7 @@ mod tests {
 
     #[test]
     fn encode_decode_round_trip_with_encryption() {
-        let c = cidr("2001:db8::/64");
+        let c = doc_cidr();
         let key = crate::xtea::key_from_passphrase("round-trip-key");
         let a = encode_dst(&c, 0, b"hello ", Some(&key));
         let frame = decode_dst(a, &c, Some(&key)).unwrap();

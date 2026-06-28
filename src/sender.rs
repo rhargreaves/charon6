@@ -103,42 +103,42 @@ fn send_icmp(destinations: &[Ipv6Addr]) -> io::Result<()> {
 mod tests {
     use super::*;
 
-    use crate::test_helpers::cidr;
+    use crate::test_helpers::doc_cidr;
 
     #[test]
     fn encode_short_message_produces_single_terminator_packet() {
-        let dsts = encode_message(&cidr("2001:db8::/64"), b"hi!", None).unwrap();
+        let dsts = encode_message(&doc_cidr(), b"hi!", None).unwrap();
         assert_eq!(dsts.len(), 1);
     }
 
     #[test]
     fn encode_exact_multiple_appends_empty_terminator() {
-        let dsts = encode_message(&cidr("2001:db8::/64"), b"abcdef", None).unwrap();
+        let dsts = encode_message(&doc_cidr(), b"abcdef", None).unwrap();
         assert_eq!(dsts.len(), 2);
     }
 
     #[test]
     fn encode_empty_message_produces_single_empty_terminator() {
-        let dsts = encode_message(&cidr("2001:db8::/64"), b"", None).unwrap();
+        let dsts = encode_message(&doc_cidr(), b"", None).unwrap();
         assert_eq!(dsts.len(), 1);
     }
 
     #[test]
     fn encode_12_bytes_produces_two_full_frames_plus_terminator() {
-        let dsts = encode_message(&cidr("2001:db8::/64"), b"abcdefghijkl", None).unwrap();
+        let dsts = encode_message(&doc_cidr(), b"abcdefghijkl", None).unwrap();
         assert_eq!(dsts.len(), 3);
     }
 
     #[test]
     fn encode_7_bytes_produces_two_packets() {
-        let dsts = encode_message(&cidr("2001:db8::/64"), b"abcdefg", None).unwrap();
+        let dsts = encode_message(&doc_cidr(), b"abcdefg", None).unwrap();
         assert_eq!(dsts.len(), 2);
     }
 
     #[test]
     fn encode_oversized_message_returns_error() {
         let message = vec![0u8; MAX_PACKETS * MAX_PAYLOAD_PER_FRAME + 1];
-        let result = encode_message(&cidr("2001:db8::/64"), &message, None);
+        let result = encode_message(&doc_cidr(), &message, None);
         assert!(result.is_err());
     }
 
@@ -147,7 +147,7 @@ mod tests {
         // 255 full frames + 1 terminator with 5 bytes = 1535 bytes, 256 packets
         let message =
             vec![0u8; (MAX_PACKETS - 1) * MAX_PAYLOAD_PER_FRAME + MAX_PAYLOAD_PER_FRAME - 1];
-        let dsts = encode_message(&cidr("2001:db8::/64"), &message, None).unwrap();
+        let dsts = encode_message(&doc_cidr(), &message, None).unwrap();
         assert_eq!(dsts.len(), MAX_PACKETS);
     }
 }

@@ -4,6 +4,13 @@
 
 Abusing the IPv6 address space to transmit data covertly.
 
+<p align="center">
+    <img src="https://github.com/rhargreaves/charon6/raw/main/docs/charon.jpg" />
+</p>
+
+> This stream an old man tends, clad in foul garb and to the sight abhorrent, and ferries over the quaking shades.
+> &mdash; *Virgil's Aeneid (Book VI)*
+
 ## Concept
 
 Data is encoded into IPv6 destination addresses and sent as ICMPv6 echo requests

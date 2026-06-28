@@ -74,3 +74,42 @@ fn send_icmp(destinations: &[Ipv6Addr]) -> io::Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cidr() -> Ipv6Cidr {
+        "2001:db8::/64".parse().unwrap()
+    }
+
+    #[test]
+    fn encode_short_message_produces_single_terminator_packet() {
+        let dsts = encode_message(&cidr(), b"hi!");
+        assert_eq!(dsts.len(), 1);
+    }
+
+    #[test]
+    fn encode_exact_multiple_appends_empty_terminator() {
+        let dsts = encode_message(&cidr(), b"abcdef");
+        assert_eq!(dsts.len(), 2);
+    }
+
+    #[test]
+    fn encode_empty_message_produces_single_empty_terminator() {
+        let dsts = encode_message(&cidr(), b"");
+        assert_eq!(dsts.len(), 1);
+    }
+
+    #[test]
+    fn encode_12_bytes_produces_two_full_frames_plus_terminator() {
+        let dsts = encode_message(&cidr(), b"abcdefghijkl");
+        assert_eq!(dsts.len(), 3);
+    }
+
+    #[test]
+    fn encode_7_bytes_produces_two_packets() {
+        let dsts = encode_message(&cidr(), b"abcdefg");
+        assert_eq!(dsts.len(), 2);
+    }
+}

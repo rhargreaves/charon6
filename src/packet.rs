@@ -50,7 +50,7 @@ mod tests {
 
     fn make_ipv6_packet(next_header: u8, payload: &[u8]) -> Vec<u8> {
         let mut packet = vec![0u8; IPV6_HEADER_LEN + payload.len()];
-        packet[0] = 0x60;
+        packet[0] = IPV6_VERSION;
         packet[NEXT_HEADER_OFFSET] = next_header;
         let src = Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1);
         packet[SRC_OFFSET..SRC_OFFSET + ADDR_LEN].copy_from_slice(&src.octets());

@@ -1,7 +1,4 @@
-use charon6::{
-    Ipv6Cidr, Transport, XteaKey, capture_loop, key_from_passphrase, open_ipv6_packet_socket,
-    send_message,
-};
+use charon6::{Cipher, Ipv6Cidr, Transport, capture_loop, open_ipv6_packet_socket, send_message};
 
 use clap::Parser;
 
@@ -44,20 +41,20 @@ fn main() {
         std::process::exit(1);
     }
 
-    let xtea_key = args.key.as_deref().map(key_from_passphrase);
+    let cipher = args.key.as_deref().map(Cipher::from_passphrase);
     let transport = match args.port {
         Some(p) => Transport::Udp(p),
         None => Transport::Icmp,
     };
 
     if args.send {
-        run_send(&args.cidr, &transport, xtea_key);
+        run_send(&args.cidr, &transport, cipher);
     } else {
-        run_recv(&args.cidr, &transport, xtea_key);
+        run_recv(&args.cidr, &transport, cipher);
     }
 }
 
-fn run_send(cidr: &Ipv6Cidr, transport: &Transport, key: Option<XteaKey>) {
+fn run_send(cidr: &Ipv6Cidr, transport: &Transport, key: Option<Cipher>) {
     use std::io::Read;
 
     let mut input = Vec::new();
@@ -72,7 +69,7 @@ fn run_send(cidr: &Ipv6Cidr, transport: &Transport, key: Option<XteaKey>) {
     }
 }
 
-fn run_recv(cidr: &Ipv6Cidr, transport: &Transport, key: Option<XteaKey>) {
+fn run_recv(cidr: &Ipv6Cidr, transport: &Transport, key: Option<Cipher>) {
     let fd = match open_ipv6_packet_socket() {
         Ok(fd) => fd,
         Err(err) => {

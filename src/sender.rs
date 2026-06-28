@@ -15,7 +15,7 @@ pub fn send_message(
     cidr: &Ipv6Cidr,
     message: &[u8],
     transport: &Transport,
-    key: Option<crate::xtea::XteaKey>,
+    key: Option<crate::xtea::Cipher>,
 ) -> io::Result<()> {
     let destinations = encode_message(cidr, message, key.as_ref())?;
     match transport {
@@ -27,7 +27,7 @@ pub fn send_message(
 fn encode_message(
     cidr: &Ipv6Cidr,
     message: &[u8],
-    key: Option<&crate::xtea::XteaKey>,
+    key: Option<&crate::xtea::Cipher>,
 ) -> io::Result<Vec<Ipv6Addr>> {
     let num_chunks = message.chunks(MAX_PAYLOAD_PER_FRAME).count();
     let needs_empty_terminator =

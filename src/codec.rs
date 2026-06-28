@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::net::Ipv6Addr;
 
 use crate::cidr::Ipv6Cidr;
-use crate::xtea::XteaKey;
+use crate::xtea::Cipher;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Frame {
@@ -69,7 +69,7 @@ pub(crate) fn encode_dst(
     cidr: &Ipv6Cidr,
     seq: u8,
     payload: &[u8],
-    key: Option<&XteaKey>,
+    key: Option<&Cipher>,
 ) -> Ipv6Addr {
     debug_assert!(payload.len() <= MAX_PAYLOAD_PER_FRAME);
     let mut bytes = cidr.network().octets();
@@ -90,7 +90,7 @@ pub(crate) fn encode_dst(
 pub(crate) fn decode_dst(
     addr: Ipv6Addr,
     cidr: &Ipv6Cidr,
-    key: Option<&XteaKey>,
+    key: Option<&Cipher>,
 ) -> Result<Frame, DecodeError> {
     if !cidr.contains(addr) {
         return Err(DecodeError::OutOfCidr);
@@ -281,7 +281,7 @@ mod tests {
     #[test]
     fn encode_decode_round_trip_with_encryption() {
         let c = doc_cidr();
-        let key = crate::xtea::key_from_passphrase("round-trip-key");
+        let key = crate::xtea::Cipher::from_passphrase("round-trip-key");
         let a = encode_dst(&c, 0, b"hello ", Some(&key));
         let frame = decode_dst(a, &c, Some(&key)).unwrap();
         assert_eq!(frame.seq, 0);

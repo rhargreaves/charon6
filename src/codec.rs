@@ -145,4 +145,106 @@ mod tests {
             }
         );
     }
+
+    #[test]
+    fn reassembler_takes_complete_message_in_order() {
+        let mut r = Reassembler::new();
+        r.push(Frame {
+            seq: 0,
+            payload: b"hello ".to_vec(),
+            is_last: false,
+        });
+        assert!(r.take().is_none());
+        r.push(Frame {
+            seq: 1,
+            payload: b"world".to_vec(),
+            is_last: true,
+        });
+        assert_eq!(r.take(), Some(b"hello world".to_vec()));
+    }
+
+    #[test]
+    fn reassembler_takes_complete_message_out_of_order() {
+        let mut r = Reassembler::new();
+        r.push(Frame {
+            seq: 1,
+            payload: b"world".to_vec(),
+            is_last: true,
+        });
+        assert!(r.take().is_none());
+        r.push(Frame {
+            seq: 0,
+            payload: b"hello ".to_vec(),
+            is_last: false,
+        });
+        assert_eq!(r.take(), Some(b"hello world".to_vec()));
+    }
+
+    #[test]
+    fn reassembler_incomplete_returns_none() {
+        let mut r = Reassembler::new();
+        r.push(Frame {
+            seq: 0,
+            payload: b"a".to_vec(),
+            is_last: false,
+        });
+        r.push(Frame {
+            seq: 2,
+            payload: b"c".to_vec(),
+            is_last: true,
+        });
+        // seq 1 missing
+        assert!(r.take().is_none());
+    }
+
+    #[test]
+    fn reassembler_duplicate_frames_are_idempotent() {
+        let mut r = Reassembler::new();
+        r.push(Frame {
+            seq: 0,
+            payload: b"hello ".to_vec(),
+            is_last: false,
+        });
+        r.push(Frame {
+            seq: 0,
+            payload: b"hello ".to_vec(),
+            is_last: false,
+        });
+        r.push(Frame {
+            seq: 1,
+            payload: b"world".to_vec(),
+            is_last: true,
+        });
+        assert_eq!(r.take(), Some(b"hello world".to_vec()));
+    }
+
+    #[test]
+    fn reassembler_resets_after_take() {
+        let mut r = Reassembler::new();
+        r.push(Frame {
+            seq: 0,
+            payload: b"first".to_vec(),
+            is_last: true,
+        });
+        assert!(r.take().is_some());
+        assert!(r.take().is_none());
+        // Can accept a new message
+        r.push(Frame {
+            seq: 0,
+            payload: b"second".to_vec(),
+            is_last: true,
+        });
+        assert_eq!(r.take(), Some(b"second".to_vec()));
+    }
+
+    #[test]
+    fn reassembler_single_terminator_frame() {
+        let mut r = Reassembler::new();
+        r.push(Frame {
+            seq: 0,
+            payload: b"hi".to_vec(),
+            is_last: true,
+        });
+        assert_eq!(r.take(), Some(b"hi".to_vec()));
+    }
 }

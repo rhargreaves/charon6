@@ -90,4 +90,18 @@ mod tests {
 
         assert!(parse_ipv6_packet(&packet).is_none());
     }
+
+    #[test]
+    fn rejects_truncated_ipv6_header() {
+        let packet = vec![0x60; 20];
+        assert!(parse_ipv6_packet(&packet).is_none());
+    }
+
+    #[test]
+    fn udp_port_none_when_payload_too_short() {
+        let packet = make_ipv6_packet(PROTO_UDP, &[0, 0]);
+        let info = parse_ipv6_packet(&packet).unwrap();
+        assert_eq!(info.next_header, PROTO_UDP);
+        assert_eq!(info.udp_dst_port, None);
+    }
 }

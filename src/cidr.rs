@@ -80,4 +80,19 @@ mod tests {
         assert!("not_an_addr/32".parse::<Ipv6Cidr>().is_err());
         assert!("2001:db8::/129".parse::<Ipv6Cidr>().is_err());
     }
+
+    #[test]
+    fn prefix_zero_matches_all_addresses() {
+        let cidr: Ipv6Cidr = "::/0".parse().unwrap();
+        assert!(cidr.contains("::1".parse().unwrap()));
+        assert!(cidr.contains("fe80::1".parse().unwrap()));
+        assert!(cidr.contains("2001:db8::1".parse().unwrap()));
+    }
+
+    #[test]
+    fn prefix_128_matches_only_exact_address() {
+        let cidr: Ipv6Cidr = "2001:db8::1/128".parse().unwrap();
+        assert!(cidr.contains("2001:db8::1".parse().unwrap()));
+        assert!(!cidr.contains("2001:db8::2".parse().unwrap()));
+    }
 }

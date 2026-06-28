@@ -81,4 +81,12 @@ mod tests {
         let decrypted = wrong_key.decrypt(&ciphertext);
         assert_ne!(decrypted, plaintext);
     }
+
+    #[test]
+    fn empty_passphrase_produces_valid_key() {
+        let key = key_from_passphrase("");
+        let plaintext: [u8; 8] = [0, 3, b'a', b'b', b'c', 0, 0, 0];
+        let decrypted = key.decrypt(&key.encrypt(&plaintext));
+        assert_eq!(decrypted, plaintext);
+    }
 }

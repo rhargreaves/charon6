@@ -66,12 +66,13 @@ impl FromStr for Ipv6Cidr {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_helpers::{addr, cidr};
 
     #[test]
-    fn cidr_contains_address_within_prefix() {
-        let cidr: Ipv6Cidr = "2001:db8::/32".parse().unwrap();
-        assert!(cidr.contains("2001:db8::1".parse().unwrap()));
-        assert!(!cidr.contains("2001:db9::1".parse().unwrap()));
+    fn contains_address_within_prefix() {
+        let c = cidr("2001:db8::/32");
+        assert!(c.contains(addr("2001:db8::1")));
+        assert!(!c.contains(addr("2001:db9::1")));
     }
 
     #[test]
@@ -83,16 +84,16 @@ mod tests {
 
     #[test]
     fn prefix_zero_matches_all_addresses() {
-        let cidr: Ipv6Cidr = "::/0".parse().unwrap();
-        assert!(cidr.contains("::1".parse().unwrap()));
-        assert!(cidr.contains("fe80::1".parse().unwrap()));
-        assert!(cidr.contains("2001:db8::1".parse().unwrap()));
+        let c = cidr("::/0");
+        assert!(c.contains(addr("::1")));
+        assert!(c.contains(addr("fe80::1")));
+        assert!(c.contains(addr("2001:db8::1")));
     }
 
     #[test]
     fn prefix_128_matches_only_exact_address() {
-        let cidr: Ipv6Cidr = "2001:db8::1/128".parse().unwrap();
-        assert!(cidr.contains("2001:db8::1".parse().unwrap()));
-        assert!(!cidr.contains("2001:db8::2".parse().unwrap()));
+        let c = cidr("2001:db8::1/128");
+        assert!(c.contains(addr("2001:db8::1")));
+        assert!(!c.contains(addr("2001:db8::2")));
     }
 }

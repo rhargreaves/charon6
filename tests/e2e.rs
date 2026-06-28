@@ -4,6 +4,10 @@ use std::net::Ipv6Addr;
 
 use common::{capture_with, capture_with_args, encode_dst, send_raw, send_recv};
 
+fn addr(s: &str) -> Ipv6Addr {
+    s.parse().unwrap()
+}
+
 #[test]
 fn decodes_single_packet_message() {
     const CIDR: &str = "2001:db8:1::/64";
@@ -24,8 +28,8 @@ fn decodes_two_packet_message() {
 
     let text = capture_with_args(CIDR, &["--port", "9999"], || {
         send_raw(&[
-            "2001:db8:2::6:6865:6c6c:6f20".parse().unwrap(),
-            "2001:db8:2::105:776f:726c:6400".parse().unwrap(),
+            addr("2001:db8:2::6:6865:6c6c:6f20"),
+            addr("2001:db8:2::105:776f:726c:6400"),
         ]);
     });
 

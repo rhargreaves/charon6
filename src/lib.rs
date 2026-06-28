@@ -3,6 +3,8 @@ mod cidr;
 mod codec;
 mod packet;
 mod sender;
+#[cfg(test)]
+mod test_helpers;
 mod xtea;
 
 pub use capture::{capture_loop, open_ipv6_packet_socket};

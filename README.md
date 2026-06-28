@@ -22,12 +22,13 @@ charon6 --send --cidr <IPv6 CIDR>
 
 By default, packets are sent as ICMPv6 echo requests. Specify `--port` to use UDP instead.
 
-Examples:
+#### Example via ICMP:
 ```
-# send via ICMP
 echo -n "hello world" | charon6 --send --cidr 2001:db8::/64
+```
 
-# send via UDP
+#### Example via UDP:
+```
 echo -n "hello world" | charon6 --send --cidr 2001:db8::/64 --port 9999
 ```
 
@@ -44,12 +45,13 @@ charon6 --recv --cidr <IPv6 CIDR>
 By default, the receiver only accepts ICMPv6 echo packets. Specify `--port`
 to listen for UDP instead.
 
-Examples:
+#### Example via ICMP:
 ```
-# receive via ICMP
 charon6 --recv --cidr 2001:db8::/64
+```
 
-# receive via UDP
+#### Example via UDP:
+```
 charon6 --recv --cidr 2001:db8::/64 --port 9999
 ```
 

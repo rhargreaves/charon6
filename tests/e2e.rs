@@ -99,10 +99,10 @@ fn incomplete_message_produces_no_output() {
 }
 
 #[test]
-fn send_mode_encodes_stdin_to_packets() {
+fn send_mode_udp_encodes_stdin_to_packets() {
     const CIDR: &str = "2001:db8:6::/64";
 
-    let text = send_recv(CIDR, b"hello", &[]);
+    let text = send_recv(CIDR, b"hello", &["--port", "9999"]);
     assert!(
         text.contains("hello\n"),
         "expected decoded message, got: {text:?}"
@@ -110,12 +110,23 @@ fn send_mode_encodes_stdin_to_packets() {
 }
 
 #[test]
-fn send_mode_uses_custom_port() {
+fn send_mode_udp_uses_custom_port() {
     const CIDR: &str = "2001:db8:7::/64";
 
     let text = send_recv(CIDR, b"port!", &["--port", "7777"]);
     assert!(
         text.contains("port!\n"),
         "expected decoded message with custom port, got: {text:?}"
+    );
+}
+
+#[test]
+fn send_mode_defaults_to_icmp() {
+    const CIDR: &str = "2001:db8:8::/64";
+
+    let text = send_recv(CIDR, b"ping!", &[]);
+    assert!(
+        text.contains("ping!\n"),
+        "expected decoded message via ICMP, got: {text:?}"
     );
 }

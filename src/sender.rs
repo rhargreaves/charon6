@@ -1,27 +1,77 @@
 use std::io;
-use std::net::{SocketAddrV6, UdpSocket};
+use std::net::Ipv6Addr;
 
 use crate::cidr::Ipv6Cidr;
 use crate::codec::encode_dst;
 
 const MAX_PAYLOAD_PER_PACKET: usize = 6;
 
-pub fn send_message(cidr: &Ipv6Cidr, message: &[u8], port: u16) -> io::Result<()> {
-    let socket = UdpSocket::bind("[::]:0")?;
+pub fn send_message(cidr: &Ipv6Cidr, message: &[u8], port: Option<u16>) -> io::Result<()> {
+    let destinations = encode_message(cidr, message);
+    match port {
+        Some(p) => send_udp(&destinations, p),
+        None => send_icmp(&destinations),
+    }
+}
 
+fn encode_message(cidr: &Ipv6Cidr, message: &[u8]) -> Vec<Ipv6Addr> {
     let chunks: Vec<&[u8]> = message.chunks(MAX_PAYLOAD_PER_PACKET).collect();
     let total = chunks.len().max(1);
 
-    for (seq, chunk) in chunks.iter().enumerate() {
-        let dst = encode_dst(cidr, seq as u8, chunk);
-        let addr = SocketAddrV6::new(dst, port, 0, 0);
-        socket.send_to(b"", addr)?;
-    }
+    let mut destinations: Vec<Ipv6Addr> = chunks
+        .iter()
+        .enumerate()
+        .map(|(seq, chunk)| encode_dst(cidr, seq as u8, chunk))
+        .collect();
 
     if message.is_empty() || message.len().is_multiple_of(MAX_PAYLOAD_PER_PACKET) {
-        let dst = encode_dst(cidr, total as u8, &[]);
-        let addr = SocketAddrV6::new(dst, port, 0, 0);
-        socket.send_to(b"", addr)?;
+        destinations.push(encode_dst(cidr, total as u8, &[]));
+    }
+
+    destinations
+}
+
+fn send_udp(destinations: &[Ipv6Addr], port: u16) -> io::Result<()> {
+    use std::net::{SocketAddrV6, UdpSocket};
+
+    let socket = UdpSocket::bind("[::]:0")?;
+    for dst in destinations {
+        socket.send_to(b"", SocketAddrV6::new(*dst, port, 0, 0))?;
+    }
+    Ok(())
+}
+
+fn send_icmp(destinations: &[Ipv6Addr]) -> io::Result<()> {
+    use nix::sys::socket::{
+        AddressFamily, MsgFlags, SockFlag, SockProtocol, SockType, sendto, socket,
+    };
+    use std::os::fd::AsRawFd;
+
+    let fd = socket(
+        AddressFamily::Inet6,
+        SockType::Raw,
+        SockFlag::empty(),
+        SockProtocol::IcmpV6,
+    )
+    .map_err(|e| io::Error::from_raw_os_error(e as i32))?;
+
+    const ICMPV6_ECHO_REQUEST: u8 = 128;
+    let icmp_header: [u8; 8] = [
+        ICMPV6_ECHO_REQUEST, // type
+        0,                   // code
+        0,
+        0, // checksum (kernel computes)
+        0,
+        0, // identifier
+        0,
+        0, // sequence number
+    ];
+
+    for dst in destinations {
+        let sockaddr =
+            nix::sys::socket::SockaddrIn6::from(std::net::SocketAddrV6::new(*dst, 0, 0, 0));
+        sendto(fd.as_raw_fd(), &icmp_header, &sockaddr, MsgFlags::empty())
+            .map_err(|e| io::Error::from_raw_os_error(e as i32))?;
     }
 
     Ok(())

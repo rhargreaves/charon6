@@ -19,21 +19,29 @@ impl XteaKey {
     }
 }
 
+const KEY_LEN: usize = 16;
+const FOLD_MULTIPLIER: u8 = 0x9B;
+const FOLD_ROTATION: u32 = 3;
+const MIX_OFFSET: usize = 7;
+const MIX_MULTIPLIER: u8 = 0x6D;
+const MIX_ROTATION: u32 = 5;
+
+// Ad-hoc KDF — not a standard like PBKDF2. Suitable for obfuscation, not
+// high-security key derivation.
 pub fn key_from_passphrase(passphrase: &str) -> XteaKey {
     let bytes = passphrase.as_bytes();
-    let mut key = [0u8; 16];
+    let mut key = [0u8; KEY_LEN];
     for (i, &b) in bytes.iter().enumerate() {
-        key[i % 16] = key[i % 16]
+        key[i % KEY_LEN] = key[i % KEY_LEN]
             .wrapping_add(b)
-            .wrapping_mul(0x9B)
-            .rotate_left(3);
+            .wrapping_mul(FOLD_MULTIPLIER)
+            .rotate_left(FOLD_ROTATION);
     }
-    // Extra mixing
-    for i in 0..16 {
+    for i in 0..KEY_LEN {
         key[i] = key[i]
-            .wrapping_add(key[(i + 7) % 16])
-            .wrapping_mul(0x6D)
-            .rotate_left(5);
+            .wrapping_add(key[(i + MIX_OFFSET) % KEY_LEN])
+            .wrapping_mul(MIX_MULTIPLIER)
+            .rotate_left(MIX_ROTATION);
     }
     XteaKey(key)
 }

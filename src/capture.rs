@@ -7,6 +7,7 @@ fn nix_to_io(err: nix::Error) -> std::io::Error {
     std::io::Error::from_raw_os_error(err as i32)
 }
 use crate::cidr::Ipv6Cidr;
+use crate::cipher::HMAC_LEN;
 use crate::codec::{DecodeError, Reassembler, decode_dst};
 use crate::packet::{PROTO_ICMPV6, PROTO_UDP, parse_ipv6_packet};
 
@@ -58,7 +59,23 @@ pub fn capture_loop(
             Ok(frame) => {
                 eprintln!("src={} -> dst={}", info.src, info.dst);
                 reassembler.push(frame);
-                if let Some(message) = reassembler.take() {
+                if let Some(payload) = reassembler.take() {
+                    let message = match &key {
+                        Some(cipher) => {
+                            if payload.len() < HMAC_LEN {
+                                eprintln!("dropped: message too short for HMAC");
+                                continue;
+                            }
+                            let (msg, tag) = payload.split_at(payload.len() - HMAC_LEN);
+                            let tag: &[u8; HMAC_LEN] = tag.try_into().unwrap();
+                            if !cipher.verify_hmac(msg, tag) {
+                                eprintln!("dropped: HMAC verification failed");
+                                continue;
+                            }
+                            msg.to_vec()
+                        }
+                        None => payload,
+                    };
                     let mut out = stdout.lock();
                     out.write_all(&message)?;
                     out.write_all(b"\n")?;

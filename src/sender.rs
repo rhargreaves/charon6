@@ -15,9 +15,17 @@ pub fn send_message(
     cidr: &Ipv6Cidr,
     message: &[u8],
     transport: &Transport,
-    key: Option<crate::cipher::Cipher>,
+    cipher: Option<crate::cipher::Cipher>,
 ) -> io::Result<()> {
-    let destinations = encode_message(cidr, message, key.as_ref())?;
+    let payload = match &cipher {
+        Some(c) => {
+            let mut buf = message.to_vec();
+            buf.extend_from_slice(&c.compute_hmac(message));
+            buf
+        }
+        None => message.to_vec(),
+    };
+    let destinations = encode_message(cidr, &payload, cipher.as_ref())?;
     match transport {
         Transport::Udp(port) => send_udp(&destinations, *port),
         Transport::Icmp => send_icmp(&destinations),

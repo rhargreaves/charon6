@@ -2,9 +2,7 @@ use std::io;
 use std::net::Ipv6Addr;
 
 use crate::cidr::Ipv6Cidr;
-use crate::codec::encode_dst;
-
-const MAX_PAYLOAD_PER_PACKET: usize = 6;
+use crate::codec::{MAX_PAYLOAD_PER_FRAME, encode_dst};
 
 pub fn send_message(cidr: &Ipv6Cidr, message: &[u8], port: Option<u16>) -> io::Result<()> {
     let destinations = encode_message(cidr, message);
@@ -15,7 +13,7 @@ pub fn send_message(cidr: &Ipv6Cidr, message: &[u8], port: Option<u16>) -> io::R
 }
 
 fn encode_message(cidr: &Ipv6Cidr, message: &[u8]) -> Vec<Ipv6Addr> {
-    let chunks: Vec<&[u8]> = message.chunks(MAX_PAYLOAD_PER_PACKET).collect();
+    let chunks: Vec<&[u8]> = message.chunks(MAX_PAYLOAD_PER_FRAME).collect();
     let total = chunks.len().max(1);
 
     let mut destinations: Vec<Ipv6Addr> = chunks
@@ -24,7 +22,7 @@ fn encode_message(cidr: &Ipv6Cidr, message: &[u8]) -> Vec<Ipv6Addr> {
         .map(|(seq, chunk)| encode_dst(cidr, seq as u8, chunk))
         .collect();
 
-    if message.is_empty() || message.len().is_multiple_of(MAX_PAYLOAD_PER_PACKET) {
+    if message.is_empty() || message.len().is_multiple_of(MAX_PAYLOAD_PER_FRAME) {
         destinations.push(encode_dst(cidr, total as u8, &[]));
     }
 

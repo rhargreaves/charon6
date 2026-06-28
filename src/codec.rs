@@ -20,7 +20,7 @@ const HOST_BYTES: usize = 8;
 const SEQ_OFFSET: usize = 0;
 const LEN_OFFSET: usize = 1;
 const PAYLOAD_OFFSET: usize = 2;
-const MAX_PAYLOAD: u8 = (HOST_BYTES - PAYLOAD_OFFSET) as u8;
+pub const MAX_PAYLOAD_PER_FRAME: usize = HOST_BYTES - PAYLOAD_OFFSET;
 
 #[derive(Default)]
 pub struct Reassembler {
@@ -65,7 +65,7 @@ impl Reassembler {
 }
 
 pub fn encode_dst(cidr: &Ipv6Cidr, seq: u8, payload: &[u8]) -> Ipv6Addr {
-    assert!(payload.len() <= MAX_PAYLOAD as usize);
+    assert!(payload.len() <= MAX_PAYLOAD_PER_FRAME);
     let mut bytes = cidr.network().octets();
     bytes[HOST_BYTES + SEQ_OFFSET] = seq;
     bytes[HOST_BYTES + LEN_OFFSET] = payload.len() as u8;
@@ -82,7 +82,7 @@ pub fn decode_dst(addr: Ipv6Addr, cidr: &Ipv6Cidr) -> Result<Frame, DecodeError>
     let host = &bytes[bytes.len() - HOST_BYTES..];
     let seq = host[SEQ_OFFSET];
     let len = host[LEN_OFFSET];
-    if len > MAX_PAYLOAD {
+    if len as usize > MAX_PAYLOAD_PER_FRAME {
         return Err(DecodeError::InvalidLen(len));
     }
     let len_usize = len as usize;
@@ -90,7 +90,7 @@ pub fn decode_dst(addr: Ipv6Addr, cidr: &Ipv6Cidr) -> Result<Frame, DecodeError>
     Ok(Frame {
         seq,
         payload,
-        is_last: len < MAX_PAYLOAD,
+        is_last: (len as usize) < MAX_PAYLOAD_PER_FRAME,
     })
 }
 

@@ -49,9 +49,12 @@ pub fn capture_loop(fd: &OwnedFd, cidr: &Ipv6Cidr, port: Option<u16>) -> nix::Re
                 reassembler.push(frame);
                 if let Some(message) = reassembler.take() {
                     let mut out = stdout.lock();
-                    let _ = out.write_all(&message);
-                    let _ = out.write_all(b"\n");
-                    let _ = out.flush();
+                    if out.write_all(&message).is_err()
+                        || out.write_all(b"\n").is_err()
+                        || out.flush().is_err()
+                    {
+                        std::process::exit(0);
+                    }
                 }
             }
             Err(DecodeError::OutOfCidr) => {}

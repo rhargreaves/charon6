@@ -9,7 +9,7 @@ pub fn send_message(
     cidr: &Ipv6Cidr,
     message: &[u8],
     transport: &Transport,
-    key: Option<[u8; 16]>,
+    key: Option<crate::xtea::XteaKey>,
 ) -> io::Result<()> {
     let destinations = encode_message(cidr, message, key.as_ref());
     match transport {
@@ -18,7 +18,11 @@ pub fn send_message(
     }
 }
 
-fn encode_message(cidr: &Ipv6Cidr, message: &[u8], key: Option<&[u8; 16]>) -> Vec<Ipv6Addr> {
+fn encode_message(
+    cidr: &Ipv6Cidr,
+    message: &[u8],
+    key: Option<&crate::xtea::XteaKey>,
+) -> Vec<Ipv6Addr> {
     let chunks: Vec<&[u8]> = message.chunks(MAX_PAYLOAD_PER_FRAME).collect();
     let total = chunks.len().max(1);
 

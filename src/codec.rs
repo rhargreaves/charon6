@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::net::Ipv6Addr;
 
 use crate::cidr::Ipv6Cidr;
-use crate::xtea;
+use crate::xtea::XteaKey;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Frame {
@@ -65,7 +65,7 @@ impl Reassembler {
     }
 }
 
-pub fn encode_dst(cidr: &Ipv6Cidr, seq: u8, payload: &[u8], key: Option<&[u8; 16]>) -> Ipv6Addr {
+pub fn encode_dst(cidr: &Ipv6Cidr, seq: u8, payload: &[u8], key: Option<&XteaKey>) -> Ipv6Addr {
     debug_assert!(payload.len() <= MAX_PAYLOAD_PER_FRAME);
     let mut bytes = cidr.network().octets();
 
@@ -75,7 +75,7 @@ pub fn encode_dst(cidr: &Ipv6Cidr, seq: u8, payload: &[u8], key: Option<&[u8; 16
     host[PAYLOAD_OFFSET..PAYLOAD_OFFSET + payload.len()].copy_from_slice(payload);
 
     if let Some(k) = key {
-        host = xtea::encrypt(&host, k);
+        host = k.encrypt(&host);
     }
 
     bytes[HOST_BYTES..].copy_from_slice(&host);
@@ -85,7 +85,7 @@ pub fn encode_dst(cidr: &Ipv6Cidr, seq: u8, payload: &[u8], key: Option<&[u8; 16
 pub fn decode_dst(
     addr: Ipv6Addr,
     cidr: &Ipv6Cidr,
-    key: Option<&[u8; 16]>,
+    key: Option<&XteaKey>,
 ) -> Result<Frame, DecodeError> {
     if !cidr.contains(addr) {
         return Err(DecodeError::OutOfCidr);
@@ -94,7 +94,7 @@ pub fn decode_dst(
     let raw_host: [u8; HOST_BYTES] = bytes[bytes.len() - HOST_BYTES..].try_into().unwrap();
 
     let host = match key {
-        Some(k) => xtea::decrypt(&raw_host, k),
+        Some(k) => k.decrypt(&raw_host),
         None => raw_host,
     };
 

@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::net::Ipv6Addr;
 
 use crate::cidr::Ipv6Cidr;
+use crate::xtea;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Frame {
@@ -64,22 +65,39 @@ impl Reassembler {
     }
 }
 
-pub fn encode_dst(cidr: &Ipv6Cidr, seq: u8, payload: &[u8]) -> Ipv6Addr {
+pub fn encode_dst(cidr: &Ipv6Cidr, seq: u8, payload: &[u8], key: Option<&[u32; 4]>) -> Ipv6Addr {
     debug_assert!(payload.len() <= MAX_PAYLOAD_PER_FRAME);
     let mut bytes = cidr.network().octets();
-    bytes[HOST_BYTES + SEQ_OFFSET] = seq;
-    bytes[HOST_BYTES + LEN_OFFSET] = payload.len() as u8;
-    bytes[HOST_BYTES + PAYLOAD_OFFSET..HOST_BYTES + PAYLOAD_OFFSET + payload.len()]
-        .copy_from_slice(payload);
+
+    let mut host = [0u8; HOST_BYTES];
+    host[SEQ_OFFSET] = seq;
+    host[LEN_OFFSET] = payload.len() as u8;
+    host[PAYLOAD_OFFSET..PAYLOAD_OFFSET + payload.len()].copy_from_slice(payload);
+
+    if let Some(k) = key {
+        host = xtea::encrypt(&host, k);
+    }
+
+    bytes[HOST_BYTES..].copy_from_slice(&host);
     Ipv6Addr::from(bytes)
 }
 
-pub fn decode_dst(addr: Ipv6Addr, cidr: &Ipv6Cidr) -> Result<Frame, DecodeError> {
+pub fn decode_dst(
+    addr: Ipv6Addr,
+    cidr: &Ipv6Cidr,
+    key: Option<&[u32; 4]>,
+) -> Result<Frame, DecodeError> {
     if !cidr.contains(addr) {
         return Err(DecodeError::OutOfCidr);
     }
     let bytes = addr.octets();
-    let host = &bytes[bytes.len() - HOST_BYTES..];
+    let raw_host: [u8; HOST_BYTES] = bytes[bytes.len() - HOST_BYTES..].try_into().unwrap();
+
+    let host = match key {
+        Some(k) => xtea::decrypt(&raw_host, k),
+        None => raw_host,
+    };
+
     let seq = host[SEQ_OFFSET];
     let len = host[LEN_OFFSET];
     if len as usize > MAX_PAYLOAD_PER_FRAME {
@@ -103,7 +121,10 @@ mod tests {
         let cidr: Ipv6Cidr = "2001:db8::/64".parse().unwrap();
         let addr: Ipv6Addr = "2001:db8::0007:0000:0000:0000".parse().unwrap();
 
-        assert_eq!(decode_dst(addr, &cidr), Err(DecodeError::InvalidLen(7)));
+        assert_eq!(
+            decode_dst(addr, &cidr, None),
+            Err(DecodeError::InvalidLen(7))
+        );
     }
 
     #[test]
@@ -111,7 +132,7 @@ mod tests {
         let cidr: Ipv6Cidr = "2001:db8::/64".parse().unwrap();
         let addr: Ipv6Addr = "fe80::1".parse().unwrap();
 
-        assert_eq!(decode_dst(addr, &cidr), Err(DecodeError::OutOfCidr));
+        assert_eq!(decode_dst(addr, &cidr, None), Err(DecodeError::OutOfCidr));
     }
 
     #[test]
@@ -119,7 +140,7 @@ mod tests {
         let cidr: Ipv6Cidr = "2001:db8::/64".parse().unwrap();
         let addr: Ipv6Addr = "2001:db8::0006:6865:6c6c:6f20".parse().unwrap();
 
-        let frame = decode_dst(addr, &cidr).expect("expected Ok");
+        let frame = decode_dst(addr, &cidr, None).expect("expected Ok");
         assert_eq!(
             frame,
             Frame {
@@ -135,7 +156,7 @@ mod tests {
         let cidr: Ipv6Cidr = "2001:db8::/64".parse().unwrap();
         let addr: Ipv6Addr = "2001:db8::9903:6869:2100:0".parse().unwrap();
 
-        let frame = decode_dst(addr, &cidr).expect("expected Ok");
+        let frame = decode_dst(addr, &cidr, None).expect("expected Ok");
         assert_eq!(
             frame,
             Frame {

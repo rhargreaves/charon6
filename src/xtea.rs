@@ -45,6 +45,25 @@ pub fn decrypt(block: &[u8; 8], key: &[u32; 4]) -> [u8; 8] {
     out
 }
 
+pub fn key_from_passphrase(passphrase: &str) -> [u32; 4] {
+    let bytes = passphrase.as_bytes();
+    let mut key = [0u32; 4];
+    // Simple key derivation: fold passphrase bytes into 4 u32s with mixing
+    for (i, &b) in bytes.iter().enumerate() {
+        key[i % 4] = key[i % 4]
+            .wrapping_add(b as u32)
+            .wrapping_mul(0x5BD1E995)
+            .rotate_left(13);
+    }
+    // Extra mixing rounds
+    for k in &mut key {
+        *k ^= k.wrapping_shr(16);
+        *k = k.wrapping_mul(0x85EBCA6B);
+        *k ^= k.wrapping_shr(13);
+    }
+    key
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

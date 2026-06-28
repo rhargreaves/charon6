@@ -16,7 +16,12 @@ pub fn open_ipv6_packet_socket() -> nix::Result<OwnedFd> {
     )
 }
 
-pub fn capture_loop(fd: &OwnedFd, cidr: &Ipv6Cidr, port: Option<u16>) -> std::io::Result<()> {
+pub fn capture_loop(
+    fd: &OwnedFd,
+    cidr: &Ipv6Cidr,
+    port: Option<u16>,
+    key: Option<[u32; 4]>,
+) -> std::io::Result<()> {
     use nix::sys::socket::{MsgFlags, recv};
     use std::os::fd::AsRawFd;
 
@@ -44,7 +49,7 @@ pub fn capture_loop(fd: &OwnedFd, cidr: &Ipv6Cidr, port: Option<u16>) -> std::io
             }
         }
 
-        match decode_dst(info.dst, cidr) {
+        match decode_dst(info.dst, cidr, key.as_ref()) {
             Ok(frame) => {
                 eprintln!("src={} -> dst={}", info.src, info.dst);
                 reassembler.push(frame);

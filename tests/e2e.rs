@@ -145,3 +145,47 @@ fn recv_icmp_mode_ignores_udp_packets() {
         "expected no output from UDP when receiver is in ICMP mode, got: {text:?}"
     );
 }
+
+#[test]
+fn send_recv_with_encryption() {
+    const CIDR: &str = "2001:db8:a::/64";
+
+    let text = send_recv(CIDR, b"secret", &["--key", "my-password"]);
+    assert!(
+        text.contains("secret\n"),
+        "expected decrypted message, got: {text:?}"
+    );
+}
+
+#[test]
+fn recv_with_wrong_key_produces_no_output() {
+    const CIDR: &str = "2001:db8:b::/64";
+
+    // Send with one key, receive with another
+    let text = capture_with_args(CIDR, &["--key", "wrong-key"], || {
+        use std::io::Write;
+        use std::process::{Command, Stdio};
+
+        let mut sender = Command::new(env!("CARGO_BIN_EXE_charon6"))
+            .args(["--send", "--cidr", CIDR, "--key", "right-key"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("failed to spawn sender");
+
+        sender
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(b"hidden")
+            .expect("failed to write");
+
+        sender.wait().expect("sender failed");
+    });
+
+    assert!(
+        !text.contains("hidden"),
+        "should not decode with wrong key, got: {text:?}"
+    );
+}

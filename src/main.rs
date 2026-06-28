@@ -1,4 +1,4 @@
-use charon6::{Ipv6Cidr, capture_loop, open_ipv6_packet_socket, send_message};
+use charon6::{Ipv6Cidr, capture_loop, key_from_passphrase, open_ipv6_packet_socket, send_message};
 
 use clap::Parser;
 
@@ -20,6 +20,9 @@ struct Args {
 
     #[arg(short, long, help = "Send UDP datagram rather than ICMP")]
     port: Option<u16>,
+
+    #[arg(short, long, help = "Encrypt/decrypt with passphrase (XTEA)")]
+    key: Option<String>,
 }
 
 fn main() {
@@ -38,14 +41,16 @@ fn main() {
         std::process::exit(1);
     }
 
+    let xtea_key = args.key.as_deref().map(key_from_passphrase);
+
     if args.send {
-        run_send(&args.cidr, args.port);
+        run_send(&args.cidr, args.port, xtea_key);
     } else {
-        run_recv(&args.cidr, args.port);
+        run_recv(&args.cidr, args.port, xtea_key);
     }
 }
 
-fn run_send(cidr: &Ipv6Cidr, port: Option<u16>) {
+fn run_send(cidr: &Ipv6Cidr, port: Option<u16>, key: Option<[u32; 4]>) {
     use std::io::Read;
 
     let mut input = Vec::new();
@@ -54,13 +59,13 @@ fn run_send(cidr: &Ipv6Cidr, port: Option<u16>) {
         std::process::exit(1);
     }
 
-    if let Err(err) = send_message(cidr, &input, port) {
+    if let Err(err) = send_message(cidr, &input, port, key) {
         eprintln!("send error: {err}");
         std::process::exit(1);
     }
 }
 
-fn run_recv(cidr: &Ipv6Cidr, port: Option<u16>) {
+fn run_recv(cidr: &Ipv6Cidr, port: Option<u16>, key: Option<[u32; 4]>) {
     eprintln!("charon6 started");
 
     let fd = match open_ipv6_packet_socket() {
@@ -76,7 +81,7 @@ fn run_recv(cidr: &Ipv6Cidr, port: Option<u16>) {
         None => eprintln!("Listening for ICMPv6 packets, decoding {cidr}..."),
     }
 
-    if let Err(err) = capture_loop(&fd, cidr, port) {
+    if let Err(err) = capture_loop(&fd, cidr, port, key) {
         if err.kind() == std::io::ErrorKind::BrokenPipe {
             return;
         }

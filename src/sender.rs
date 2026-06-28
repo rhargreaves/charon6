@@ -4,26 +4,31 @@ use std::net::Ipv6Addr;
 use crate::cidr::Ipv6Cidr;
 use crate::codec::{MAX_PAYLOAD_PER_FRAME, encode_dst};
 
-pub fn send_message(cidr: &Ipv6Cidr, message: &[u8], port: Option<u16>) -> io::Result<()> {
-    let destinations = encode_message(cidr, message);
+pub fn send_message(
+    cidr: &Ipv6Cidr,
+    message: &[u8],
+    port: Option<u16>,
+    key: Option<[u32; 4]>,
+) -> io::Result<()> {
+    let destinations = encode_message(cidr, message, key.as_ref());
     match port {
         Some(p) => send_udp(&destinations, p),
         None => send_icmp(&destinations),
     }
 }
 
-fn encode_message(cidr: &Ipv6Cidr, message: &[u8]) -> Vec<Ipv6Addr> {
+fn encode_message(cidr: &Ipv6Cidr, message: &[u8], key: Option<&[u32; 4]>) -> Vec<Ipv6Addr> {
     let chunks: Vec<&[u8]> = message.chunks(MAX_PAYLOAD_PER_FRAME).collect();
     let total = chunks.len().max(1);
 
     let mut destinations: Vec<Ipv6Addr> = chunks
         .iter()
         .enumerate()
-        .map(|(seq, chunk)| encode_dst(cidr, seq as u8, chunk))
+        .map(|(seq, chunk)| encode_dst(cidr, seq as u8, chunk, key))
         .collect();
 
     if message.is_empty() || message.len().is_multiple_of(MAX_PAYLOAD_PER_FRAME) {
-        destinations.push(encode_dst(cidr, total as u8, &[]));
+        destinations.push(encode_dst(cidr, total as u8, &[], key));
     }
 
     destinations
@@ -85,31 +90,31 @@ mod tests {
 
     #[test]
     fn encode_short_message_produces_single_terminator_packet() {
-        let dsts = encode_message(&cidr(), b"hi!");
+        let dsts = encode_message(&cidr(), b"hi!", None);
         assert_eq!(dsts.len(), 1);
     }
 
     #[test]
     fn encode_exact_multiple_appends_empty_terminator() {
-        let dsts = encode_message(&cidr(), b"abcdef");
+        let dsts = encode_message(&cidr(), b"abcdef", None);
         assert_eq!(dsts.len(), 2);
     }
 
     #[test]
     fn encode_empty_message_produces_single_empty_terminator() {
-        let dsts = encode_message(&cidr(), b"");
+        let dsts = encode_message(&cidr(), b"", None);
         assert_eq!(dsts.len(), 1);
     }
 
     #[test]
     fn encode_12_bytes_produces_two_full_frames_plus_terminator() {
-        let dsts = encode_message(&cidr(), b"abcdefghijkl");
+        let dsts = encode_message(&cidr(), b"abcdefghijkl", None);
         assert_eq!(dsts.len(), 3);
     }
 
     #[test]
     fn encode_7_bytes_produces_two_packets() {
-        let dsts = encode_message(&cidr(), b"abcdefg");
+        let dsts = encode_message(&cidr(), b"abcdefg", None);
         assert_eq!(dsts.len(), 2);
     }
 }

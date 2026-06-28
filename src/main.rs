@@ -18,7 +18,7 @@ struct Args {
     #[arg(short, long, help = "Receive mode: decode packets to stdout")]
     recv: bool,
 
-    #[arg(short, long, help = "UDP destination port (omit for ICMP)")]
+    #[arg(short, long, help = "Send UDP datagram rather than ICMP")]
     port: Option<u16>,
 }
 

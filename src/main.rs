@@ -66,7 +66,7 @@ fn run_recv(cidr: &Ipv6Cidr, port: Option<u16>) {
     let fd = match open_ipv6_packet_socket() {
         Ok(fd) => fd,
         Err(err) => {
-            eprintln!("Failed to open AF_PACKET socket: {err} (need root or CAP_NET_RAW)");
+            eprintln!("failed to open AF_PACKET socket: {err} (need root or CAP_NET_RAW?)");
             std::process::exit(1);
         }
     };

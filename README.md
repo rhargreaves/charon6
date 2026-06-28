@@ -7,8 +7,8 @@ Abusing the IPv6 address space to transmit data covertly.
 ## Concept
 
 Data is encoded into IPv6 destination addresses and sent as ICMPv6 echo requests
-or UDP datagrams. The payload lives entirely in the destination address — packet
-bodies are empty. Optional encryption.
+or UDP datagrams. The payload lives entirely in the destination addresses of packets.
+There is optional encryption & message integrity checking.
 
 ## Usage
 
@@ -18,13 +18,13 @@ bodies are empty. Optional encryption.
 charon6 --send --cidr <IPv6 CIDR>
 ```
 
-- `--send`, `-s` — send mode: read stdin, encode to IPv6 packets.
+- `--send`, `-s` — send mode: encode stdin to packets.
 - `--cidr` (required) — IPv6 `/64` range used to encode/decode destination addresses.
 - `--port <N>` — send via UDP to this port instead of ICMP.
 - `--key <passphrase>` — encrypt with passphrase.
 
 By default, packets are sent as ICMPv6 echo requests. Specify `--port` to use
-UDP instead. Specify `--key` to encrypt the host portion of each address.
+UDP instead. Specify `--key` to encrypt the payload.
 
 ```
 echo -n "hello world" | charon6 --send --cidr 2001:db8::/64
@@ -105,10 +105,10 @@ before embedding in thedestination address.
   length, or payload content.
 - **Integrity:** A 16-byte HMAC-SHA256 tag is appended to the message before
   encryption. The receiver verifies the tag after decryption and reassembly;
-  tampered or wrong-key messages are dropped (logged to stderr). The HMAC adds ~3
+  tampered or wrong-key messages are dropped (but logged to stderr). The HMAC adds ~3
   packets of overhead per message.
 
-### Current limitations
+### Limitations
 
 - **ECB mode:** Identical plaintext blocks produce identical ciphertext.
   Within a single message this does not occur (seq always differs), but
@@ -124,7 +124,7 @@ make build
 
 ## Test
 
-Integration tests run with `sudo` to give `CAP_NET_RAW`.
+Integration tests run with `sudo` to give `CAP_NET_RAW` capability.
 
 ```
 make test

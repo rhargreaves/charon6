@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::net::Ipv6Addr;
 
 use crate::cidr::Ipv6Cidr;
-use crate::xtea::Cipher;
+use crate::cipher::Cipher;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Frame {
@@ -281,7 +281,7 @@ mod tests {
     #[test]
     fn encode_decode_round_trip_with_encryption() {
         let c = doc_cidr();
-        let key = crate::xtea::Cipher::from_passphrase("round-trip-key");
+        let key = crate::cipher::Cipher::from_passphrase("round-trip-key");
         let a = encode_dst(&c, 0, b"hello ", Some(&key));
         let frame = decode_dst(a, &c, Some(&key)).unwrap();
         assert_eq!(frame.seq, 0);

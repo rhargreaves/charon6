@@ -26,7 +26,7 @@ pub fn capture_loop(
     fd: &OwnedFd,
     cidr: &Ipv6Cidr,
     transport: &Transport,
-    key: Option<crate::xtea::Cipher>,
+    key: Option<crate::cipher::Cipher>,
 ) -> std::io::Result<()> {
     use nix::sys::socket::{MsgFlags, recv};
     use std::os::fd::AsRawFd;

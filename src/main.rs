@@ -77,6 +77,9 @@ fn run_recv(cidr: &Ipv6Cidr, port: Option<u16>) {
     }
 
     if let Err(err) = capture_loop(&fd, cidr, port) {
+        if err.kind() == std::io::ErrorKind::BrokenPipe {
+            return;
+        }
         eprintln!("capture error: {err}");
         std::process::exit(1);
     }

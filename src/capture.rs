@@ -16,7 +16,7 @@ pub fn open_ipv6_packet_socket() -> nix::Result<OwnedFd> {
     )
 }
 
-pub fn capture_loop(fd: &OwnedFd, cidr: &Ipv6Cidr, port: Option<u16>) -> nix::Result<()> {
+pub fn capture_loop(fd: &OwnedFd, cidr: &Ipv6Cidr, port: Option<u16>) -> std::io::Result<()> {
     use nix::sys::socket::{MsgFlags, recv};
     use std::os::fd::AsRawFd;
 
@@ -24,7 +24,8 @@ pub fn capture_loop(fd: &OwnedFd, cidr: &Ipv6Cidr, port: Option<u16>) -> nix::Re
     let mut reassembler = Reassembler::new();
     let stdout = std::io::stdout();
     loop {
-        let n = recv(fd.as_raw_fd(), &mut buf, MsgFlags::empty())?;
+        let n = recv(fd.as_raw_fd(), &mut buf, MsgFlags::empty())
+            .map_err(|e| std::io::Error::from_raw_os_error(e as i32))?;
         let Some(info) = parse_ipv6_packet(&buf[..n]) else {
             eprintln!("dropped: malformed IPv6 header");
             continue;
@@ -49,12 +50,9 @@ pub fn capture_loop(fd: &OwnedFd, cidr: &Ipv6Cidr, port: Option<u16>) -> nix::Re
                 reassembler.push(frame);
                 if let Some(message) = reassembler.take() {
                     let mut out = stdout.lock();
-                    if out.write_all(&message).is_err()
-                        || out.write_all(b"\n").is_err()
-                        || out.flush().is_err()
-                    {
-                        std::process::exit(0);
-                    }
+                    out.write_all(&message)?;
+                    out.write_all(b"\n")?;
+                    out.flush()?;
                 }
             }
             Err(DecodeError::OutOfCidr) => {}

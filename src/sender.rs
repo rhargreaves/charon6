@@ -5,6 +5,10 @@ use crate::Transport;
 use crate::cidr::Ipv6Cidr;
 use crate::codec::{MAX_PAYLOAD_PER_FRAME, encode_dst};
 
+fn nix_to_io(err: nix::Error) -> io::Error {
+    io::Error::from_raw_os_error(err as i32)
+}
+
 pub fn send_message(
     cidr: &Ipv6Cidr,
     message: &[u8],
@@ -61,7 +65,7 @@ fn send_icmp(destinations: &[Ipv6Addr]) -> io::Result<()> {
         SockFlag::empty(),
         SockProtocol::IcmpV6,
     )
-    .map_err(|e| io::Error::from_raw_os_error(e as i32))?;
+    .map_err(nix_to_io)?;
 
     const ICMPV6_ECHO_REQUEST: u8 = 128;
     let icmp_header: [u8; 8] = [
@@ -78,8 +82,7 @@ fn send_icmp(destinations: &[Ipv6Addr]) -> io::Result<()> {
     for dst in destinations {
         let sockaddr =
             nix::sys::socket::SockaddrIn6::from(std::net::SocketAddrV6::new(*dst, 0, 0, 0));
-        sendto(fd.as_raw_fd(), &icmp_header, &sockaddr, MsgFlags::empty())
-            .map_err(|e| io::Error::from_raw_os_error(e as i32))?;
+        sendto(fd.as_raw_fd(), &icmp_header, &sockaddr, MsgFlags::empty()).map_err(nix_to_io)?;
     }
 
     Ok(())

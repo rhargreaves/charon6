@@ -5,7 +5,8 @@
 Abusing the IPv6 address space to transmit data covertly.
 
 <p align="center">
-    <img src="https://github.com/rhargreaves/charon6/raw/main/docs/charon.jpg" />
+    <img src="https://github.com/rhargreaves/charon6/raw/main/docs/charon.jpg"
+      alt="depiction of Charon" title="depiction of Charon" />
 </p>
 
 > This stream an old man tends, clad in foul garb and to the sight abhorrent, and ferries over the quaking shades.
@@ -75,6 +76,8 @@ $ echo -n "hello world" | charon6 --send --cidr 2001:db8::/64
 
 Terminal 1 output:
 ```
+src=::1 -> dst=2001:db8::6:6865:6c6c:6f20
+src=::1 -> dst=2001:db8::105:776f:726c:6400
 hello world
 ```
 
@@ -136,3 +139,7 @@ Integration tests run with `sudo` to give `CAP_NET_RAW` capability.
 ```
 make test
 ```
+
+## Acknowledgements
+
+- Charon depiction by [H.Kopp-delaney](https://www.koppdelaney.de/)

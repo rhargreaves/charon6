@@ -15,4 +15,4 @@
 - If you ever run an ad-hoc test consider making it a permanent test if regression is not expected.
 
 ## Project Structure
-- Ensure you update README.md, Makefile and CI/CD if changes warrant it.
+- Ensure you update README.md, Makefile and CI/CD when you have made a change.

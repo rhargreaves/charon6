@@ -36,10 +36,16 @@ charon6 --recv --cidr <IPv6 CIDR>
 
 - `--recv`, `-r` — receive mode: decode packets to stdout.
 - `--cidr` (required) — IPv6 `/64` range used to encode/decode destination addresses.
+- `--port <N>` — listen for UDP on this port instead of ICMP.
 
-Example:
+By default, the receiver only accepts ICMPv6 echo packets. Specify `--port`
+to listen for UDP instead. The `--port` flag should match on both sender and
+receiver.
+
+Examples:
 ```
 charon6 --recv --cidr 2001:db8::/64
+charon6 --recv --cidr 2001:db8::/64 --port 9999
 ```
 
 ## Example

@@ -1,7 +1,11 @@
 use cipher::{BlockCipherDecrypt, BlockCipherEncrypt, KeyInit};
+use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 
 const KEY_LEN: usize = 16;
+pub(crate) const HMAC_LEN: usize = 16;
+
+type HmacSha256 = Hmac<Sha256>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cipher([u8; KEY_LEN]);
@@ -24,6 +28,17 @@ impl Cipher {
         let mut data = (*block).into();
         cipher.decrypt_block(&mut data);
         data.into()
+    }
+
+    pub fn compute_hmac(&self, message: &[u8]) -> [u8; HMAC_LEN] {
+        let mut mac = HmacSha256::new_from_slice(&self.0).expect("HMAC accepts any key length");
+        mac.update(message);
+        let result = mac.finalize().into_bytes();
+        result[..HMAC_LEN].try_into().unwrap()
+    }
+
+    pub fn verify_hmac(&self, message: &[u8], tag: &[u8; HMAC_LEN]) -> bool {
+        self.compute_hmac(message) == *tag
     }
 }
 
@@ -69,5 +84,27 @@ mod tests {
         let plaintext: [u8; 8] = [0, 3, b'a', b'b', b'c', 0, 0, 0];
         let decrypted = key.decrypt(&key.encrypt(&plaintext));
         assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn hmac_verifies_correct_message() {
+        let c = test_cipher();
+        let tag = c.compute_hmac(b"hello world");
+        assert!(c.verify_hmac(b"hello world", &tag));
+    }
+
+    #[test]
+    fn hmac_rejects_tampered_message() {
+        let c = test_cipher();
+        let tag = c.compute_hmac(b"hello world");
+        assert!(!c.verify_hmac(b"hello worlD", &tag));
+    }
+
+    #[test]
+    fn hmac_rejects_wrong_key() {
+        let c1 = test_cipher();
+        let c2 = Cipher::from_passphrase("other-password");
+        let tag = c1.compute_hmac(b"hello");
+        assert!(!c2.verify_hmac(b"hello", &tag));
     }
 }

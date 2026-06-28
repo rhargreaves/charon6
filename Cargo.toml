@@ -8,6 +8,7 @@ license = "MIT"
 [dependencies]
 cipher = "0.5"
 clap = { version = "4.6.1", features = ["derive"] }
+hmac = "0.12"
 nix = { version = "0.31", features = ["socket", "net"] }
 sha2 = "0.10"
 xtea = "0.1"

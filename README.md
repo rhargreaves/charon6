@@ -105,16 +105,19 @@ destination address.
   the recovered `seq` field to reorder.
 - **What is hidden:** An observer cannot see the sequence number, payload
   length, or payload content — only the CIDR prefix is visible.
+- **Integrity:** A 16-byte HMAC-SHA256 tag is appended to the message before
+  encryption. The receiver verifies the tag after decryption and reassembly;
+  tampered or wrong-key messages are silently dropped. The HMAC adds ~3
+  packets of overhead per message.
 
 ### Current limitations
 
-- **No authentication:** There is no MAC or integrity check. A modified
-  ciphertext will decrypt to garbage rather than being rejected.
 - **ECB mode:** Identical plaintext blocks produce identical ciphertext.
   Within a single message this does not occur (seq always differs), but
   across messages it is theoretically possible.
 - Prefix is fixed at `/64`.
-- Max 256 packets per message (seq is u8, max payload ~1535 bytes).
+- Max 256 packets per message (seq is u8, max payload ~1519 bytes with
+  encryption due to 16-byte HMAC overhead).
 
 ## Build
 

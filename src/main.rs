@@ -33,6 +33,11 @@ fn main() {
         std::process::exit(1);
     }
 
+    if !args.send && !args.recv {
+        eprintln!("error: specify --send or --recv");
+        std::process::exit(1);
+    }
+
     if args.send {
         run_send(&args.cidr, args.port);
     } else {

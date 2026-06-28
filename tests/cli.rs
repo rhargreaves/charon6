@@ -51,3 +51,27 @@ fn missing_required_cidr_exits_with_usage_error() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("--cidr"));
 }
+
+#[test]
+fn send_and_recv_together_exits_with_error() {
+    let output = run(&["--send", "--recv", "--cidr", "2001:db8::/64"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("--send and --recv"),
+        "expected mutual exclusion error, got: {stderr:?}"
+    );
+}
+
+#[test]
+fn neither_send_nor_recv_exits_with_error() {
+    let output = run(&["--cidr", "2001:db8::/64"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("--send or --recv"),
+        "expected mode required error, got: {stderr:?}"
+    );
+}

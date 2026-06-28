@@ -59,7 +59,7 @@ pub fn capture_with_args(cidr: &str, extra_recv_args: &[&str], action: impl FnOn
         "missing CAP_NET_RAW: run via `make test` (uses sudo) or `make ci`"
     );
 
-    let mut recv_args = vec!["--cidr", cidr];
+    let mut recv_args = vec!["--recv", "--cidr", cidr];
     recv_args.extend_from_slice(extra_recv_args);
 
     let mut child = Command::new(env!("CARGO_BIN_EXE_charon6"))

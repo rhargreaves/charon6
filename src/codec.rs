@@ -5,14 +5,14 @@ use crate::cidr::Ipv6Cidr;
 use crate::xtea::XteaKey;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Frame {
+pub(crate) struct Frame {
     pub seq: u8,
     pub payload: Vec<u8>,
     pub is_last: bool,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum DecodeError {
+pub(crate) enum DecodeError {
     OutOfCidr,
     InvalidLen(u8),
 }
@@ -21,10 +21,10 @@ const HOST_BYTES: usize = 8;
 const SEQ_OFFSET: usize = 0;
 const LEN_OFFSET: usize = 1;
 const PAYLOAD_OFFSET: usize = 2;
-pub const MAX_PAYLOAD_PER_FRAME: usize = HOST_BYTES - PAYLOAD_OFFSET;
+pub(crate) const MAX_PAYLOAD_PER_FRAME: usize = HOST_BYTES - PAYLOAD_OFFSET;
 
 #[derive(Default)]
-pub struct Reassembler {
+pub(crate) struct Reassembler {
     frames: BTreeMap<u8, Frame>,
     last_seq: Option<u8>,
 }
@@ -65,7 +65,12 @@ impl Reassembler {
     }
 }
 
-pub fn encode_dst(cidr: &Ipv6Cidr, seq: u8, payload: &[u8], key: Option<&XteaKey>) -> Ipv6Addr {
+pub(crate) fn encode_dst(
+    cidr: &Ipv6Cidr,
+    seq: u8,
+    payload: &[u8],
+    key: Option<&XteaKey>,
+) -> Ipv6Addr {
     debug_assert!(payload.len() <= MAX_PAYLOAD_PER_FRAME);
     let mut bytes = cidr.network().octets();
 
@@ -82,7 +87,7 @@ pub fn encode_dst(cidr: &Ipv6Cidr, seq: u8, payload: &[u8], key: Option<&XteaKey
     Ipv6Addr::from(bytes)
 }
 
-pub fn decode_dst(
+pub(crate) fn decode_dst(
     addr: Ipv6Addr,
     cidr: &Ipv6Cidr,
     key: Option<&XteaKey>,

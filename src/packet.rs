@@ -9,17 +9,17 @@ const DST_OFFSET: usize = 24;
 const ADDR_LEN: usize = 16;
 const UDP_DST_PORT_OFFSET: usize = IPV6_HEADER_LEN + 2;
 
-pub const PROTO_UDP: u8 = 17;
-pub const PROTO_ICMPV6: u8 = 58;
+pub(crate) const PROTO_UDP: u8 = 17;
+pub(crate) const PROTO_ICMPV6: u8 = 58;
 
-pub struct PacketInfo {
+pub(crate) struct PacketInfo {
     pub src: Ipv6Addr,
     pub dst: Ipv6Addr,
     pub next_header: u8,
     pub udp_dst_port: Option<u16>,
 }
 
-pub fn parse_ipv6_packet(packet: &[u8]) -> Option<PacketInfo> {
+pub(crate) fn parse_ipv6_packet(packet: &[u8]) -> Option<PacketInfo> {
     let header: &[u8; IPV6_HEADER_LEN] = packet.get(..IPV6_HEADER_LEN)?.try_into().ok()?;
     if header[0] & IP_VERSION_MASK != IPV6_VERSION {
         return None;

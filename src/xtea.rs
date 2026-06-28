@@ -1,14 +1,14 @@
 use cipher::{BlockCipherDecrypt, BlockCipherEncrypt, KeyInit};
 
 pub fn encrypt(block: &[u8; 8], key: &[u8; 16]) -> [u8; 8] {
-    let cipher = xtea::Xtea::new_from_slice(key).unwrap();
+    let cipher = xtea::Xtea::new(key.into());
     let mut data = (*block).into();
     cipher.encrypt_block(&mut data);
     data.into()
 }
 
 pub fn decrypt(block: &[u8; 8], key: &[u8; 16]) -> [u8; 8] {
-    let cipher = xtea::Xtea::new_from_slice(key).unwrap();
+    let cipher = xtea::Xtea::new(key.into());
     let mut data = (*block).into();
     cipher.decrypt_block(&mut data);
     data.into()

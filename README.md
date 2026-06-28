@@ -96,8 +96,9 @@ payload) is encrypted with [XTEA](https://en.wikipedia.org/wiki/XTEA)
 (eXtended Tiny Encryption Algorithm) in ECB mode before embedding in the
 destination address.
 
-- **Cipher:** XTEA — 64-bit block cipher with 128-bit key, 32 Feistel rounds.
-  Provided by the [RustCrypto `xtea` crate](https://crates.io/crates/xtea).
+- **Cipher:** XTEA — 64-bit block cipher with 128-bit key, 64 Feistel rounds
+  (32 cycles). Provided by the
+  [RustCrypto `xtea` crate](https://crates.io/crates/xtea).
 - **Key derivation:** The passphrase is hashed with SHA-256 and truncated to
   128 bits (16 bytes) for the XTEA key.
 - **Per-packet:** Each packet is encrypted and decrypted independently,
@@ -116,8 +117,7 @@ destination address.
   Within a single message this does not occur (seq always differs), but
   across messages it is theoretically possible.
 - Prefix is fixed at `/64`.
-- Max 256 packets per message (seq is u8, max payload ~1519 bytes with
-  encryption due to 16-byte HMAC overhead).
+- Max 256 packets per message.
 
 ## Build
 

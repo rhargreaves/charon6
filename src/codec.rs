@@ -3,7 +3,7 @@ use std::net::Ipv6Addr;
 
 use crate::cidr::Ipv6Cidr;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Frame {
     pub seq: u8,
     pub payload: Vec<u8>,

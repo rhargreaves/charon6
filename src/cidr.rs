@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 const IPV6_BITS: u8 = 128;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ipv6Cidr {
     network: Ipv6Addr,
     prefix_len: u8,

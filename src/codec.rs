@@ -268,4 +268,25 @@ mod tests {
         });
         assert_eq!(r.take(), Some(b"hi".to_vec()));
     }
+
+    #[test]
+    fn encode_decode_round_trip_without_encryption() {
+        let cidr: Ipv6Cidr = "2001:db8::/64".parse().unwrap();
+        let addr = encode_dst(&cidr, 3, b"test!", None);
+        let frame = decode_dst(addr, &cidr, None).unwrap();
+        assert_eq!(frame.seq, 3);
+        assert_eq!(frame.payload, b"test!");
+        assert!(frame.is_last);
+    }
+
+    #[test]
+    fn encode_decode_round_trip_with_encryption() {
+        let cidr: Ipv6Cidr = "2001:db8::/64".parse().unwrap();
+        let key = crate::xtea::key_from_passphrase("round-trip-key");
+        let addr = encode_dst(&cidr, 0, b"hello ", Some(&key));
+        let frame = decode_dst(addr, &cidr, Some(&key)).unwrap();
+        assert_eq!(frame.seq, 0);
+        assert_eq!(frame.payload, b"hello ");
+        assert!(!frame.is_last);
+    }
 }

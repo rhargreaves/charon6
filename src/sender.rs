@@ -1,19 +1,20 @@
 use std::io;
 use std::net::Ipv6Addr;
 
+use crate::Transport;
 use crate::cidr::Ipv6Cidr;
 use crate::codec::{MAX_PAYLOAD_PER_FRAME, encode_dst};
 
 pub fn send_message(
     cidr: &Ipv6Cidr,
     message: &[u8],
-    port: Option<u16>,
+    transport: &Transport,
     key: Option<[u8; 16]>,
 ) -> io::Result<()> {
     let destinations = encode_message(cidr, message, key.as_ref());
-    match port {
-        Some(p) => send_udp(&destinations, p),
-        None => send_icmp(&destinations),
+    match transport {
+        Transport::Udp(port) => send_udp(&destinations, *port),
+        Transport::Icmp => send_icmp(&destinations),
     }
 }
 

@@ -1,6 +1,7 @@
 use std::io::Write;
 use std::os::fd::OwnedFd;
 
+use crate::Transport;
 use crate::cidr::Ipv6Cidr;
 use crate::codec::{DecodeError, Reassembler, decode_dst};
 use crate::packet::{PROTO_ICMPV6, PROTO_UDP, parse_ipv6_packet};
@@ -19,7 +20,7 @@ pub fn open_ipv6_packet_socket() -> nix::Result<OwnedFd> {
 pub fn capture_loop(
     fd: &OwnedFd,
     cidr: &Ipv6Cidr,
-    port: Option<u16>,
+    transport: &Transport,
     key: Option<[u8; 16]>,
 ) -> std::io::Result<()> {
     use nix::sys::socket::{MsgFlags, recv};
@@ -36,14 +37,14 @@ pub fn capture_loop(
             continue;
         };
 
-        match port {
-            None => {
+        match transport {
+            Transport::Icmp => {
                 if info.next_header != PROTO_ICMPV6 {
                     continue;
                 }
             }
-            Some(p) => {
-                if info.next_header != PROTO_UDP || info.udp_dst_port != Some(p) {
+            Transport::Udp(port) => {
+                if info.next_header != PROTO_UDP || info.udp_dst_port != Some(*port) {
                     continue;
                 }
             }

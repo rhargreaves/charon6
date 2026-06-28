@@ -1,4 +1,6 @@
-use charon6::{Ipv6Cidr, capture_loop, key_from_passphrase, open_ipv6_packet_socket, send_message};
+use charon6::{
+    Ipv6Cidr, Transport, capture_loop, key_from_passphrase, open_ipv6_packet_socket, send_message,
+};
 
 use clap::Parser;
 
@@ -42,15 +44,19 @@ fn main() {
     }
 
     let xtea_key = args.key.as_deref().map(key_from_passphrase);
+    let transport = match args.port {
+        Some(p) => Transport::Udp(p),
+        None => Transport::Icmp,
+    };
 
     if args.send {
-        run_send(&args.cidr, args.port, xtea_key);
+        run_send(&args.cidr, &transport, xtea_key);
     } else {
-        run_recv(&args.cidr, args.port, xtea_key);
+        run_recv(&args.cidr, &transport, xtea_key);
     }
 }
 
-fn run_send(cidr: &Ipv6Cidr, port: Option<u16>, key: Option<[u8; 16]>) {
+fn run_send(cidr: &Ipv6Cidr, transport: &Transport, key: Option<[u8; 16]>) {
     use std::io::Read;
 
     let mut input = Vec::new();
@@ -59,13 +65,13 @@ fn run_send(cidr: &Ipv6Cidr, port: Option<u16>, key: Option<[u8; 16]>) {
         std::process::exit(1);
     }
 
-    if let Err(err) = send_message(cidr, &input, port, key) {
+    if let Err(err) = send_message(cidr, &input, transport, key) {
         eprintln!("send error: {err}");
         std::process::exit(1);
     }
 }
 
-fn run_recv(cidr: &Ipv6Cidr, port: Option<u16>, key: Option<[u8; 16]>) {
+fn run_recv(cidr: &Ipv6Cidr, transport: &Transport, key: Option<[u8; 16]>) {
     let fd = match open_ipv6_packet_socket() {
         Ok(fd) => fd,
         Err(err) => {
@@ -74,12 +80,12 @@ fn run_recv(cidr: &Ipv6Cidr, port: Option<u16>, key: Option<[u8; 16]>) {
         }
     };
 
-    match port {
-        Some(p) => eprintln!("Listening for UDP/{p} packets, decoding {cidr}..."),
-        None => eprintln!("Listening for ICMPv6 packets, decoding {cidr}..."),
+    match transport {
+        Transport::Udp(p) => eprintln!("Listening for UDP/{p} packets, decoding {cidr}..."),
+        Transport::Icmp => eprintln!("Listening for ICMPv6 packets, decoding {cidr}..."),
     }
 
-    if let Err(err) = capture_loop(&fd, cidr, port, key) {
+    if let Err(err) = capture_loop(&fd, cidr, transport, key) {
         if err.kind() == std::io::ErrorKind::BrokenPipe {
             return;
         }

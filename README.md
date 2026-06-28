@@ -92,23 +92,20 @@ of its destination address. Locked to `/64`, so the host portion is 8 bytes:
 ### Encryption
 
 When `--key` is provided, the entire 8-byte host portion (seq, len, and
-payload) is encrypted with [XTEA](https://en.wikipedia.org/wiki/XTEA)
-(eXtended Tiny Encryption Algorithm) in ECB mode before embedding in the
-destination address.
+payload) is encrypted with [XTEA](https://en.wikipedia.org/wiki/XTEA) in ECB mode
+before embedding in thedestination address.
 
-- **Cipher:** XTEA — 64-bit block cipher with 128-bit key, 64 Feistel rounds
-  (32 cycles). Provided by the
-  [RustCrypto `xtea` crate](https://crates.io/crates/xtea).
+- **Cipher:** XTEA: 64-bit block cipher with 128-bit key, 64 Feistel rounds.
 - **Key derivation:** The passphrase is hashed with SHA-256 and truncated to
   128 bits (16 bytes) for the XTEA key.
 - **Per-packet:** Each packet is encrypted and decrypted independently,
   allowing out-of-order reassembly. The receiver decrypts first, then uses
   the recovered `seq` field to reorder.
 - **What is hidden:** An observer cannot see the sequence number, payload
-  length, or payload content — only the CIDR prefix is visible.
+  length, or payload content.
 - **Integrity:** A 16-byte HMAC-SHA256 tag is appended to the message before
   encryption. The receiver verifies the tag after decryption and reassembly;
-  tampered or wrong-key messages are silently dropped. The HMAC adds ~3
+  tampered or wrong-key messages are dropped (logged to stderr). The HMAC adds ~3
   packets of overhead per message.
 
 ### Current limitations

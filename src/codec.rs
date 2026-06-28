@@ -65,7 +65,7 @@ impl Reassembler {
 }
 
 pub fn encode_dst(cidr: &Ipv6Cidr, seq: u8, payload: &[u8]) -> Ipv6Addr {
-    assert!(payload.len() <= MAX_PAYLOAD_PER_FRAME);
+    debug_assert!(payload.len() <= MAX_PAYLOAD_PER_FRAME);
     let mut bytes = cidr.network().octets();
     bytes[HOST_BYTES + SEQ_OFFSET] = seq;
     bytes[HOST_BYTES + LEN_OFFSET] = payload.len() as u8;

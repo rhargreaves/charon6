@@ -6,7 +6,10 @@ Abusing the IPv6 address space to transmit data covertly.
 
 ## Concept
 
-Data is encoded into IPv6 destination addresses and in the form of a series of ICMPv6 echoes or UDP datagrams. The payload lives entirely in the destination address.
+Data is encoded into IPv6 destination addresses and sent as ICMPv6 echo requests
+or UDP datagrams. The payload lives entirely in the destination address — packet
+bodies are empty. Optional XTEA encryption hides the sequence number, length,
+and payload from observers.
 
 ## Usage
 
@@ -19,16 +22,14 @@ charon6 --send --cidr <IPv6 CIDR>
 - `--send`, `-s` — send mode: read stdin, encode to IPv6 packets.
 - `--cidr` (required) — IPv6 `/64` range used to encode/decode destination addresses.
 - `--port <N>` — send via UDP to this port instead of ICMP.
+- `--key <passphrase>` — encrypt with XTEA (must match on receiver).
 
-By default, packets are sent as ICMPv6 echo requests. Specify `--port` to use UDP instead.
+By default, packets are sent as ICMPv6 echo requests. Specify `--port` to use
+UDP instead. Specify `--key` to encrypt the host portion of each address.
 
-#### via ICMP
 ```
 echo -n "hello world" | charon6 --send --cidr 2001:db8::/64
-```
-
-#### via UDP
-```
+echo -n "hello world" | charon6 --send --cidr 2001:db8::/64 --key secret
 echo -n "hello world" | charon6 --send --cidr 2001:db8::/64 --port 9999
 ```
 
@@ -41,17 +42,11 @@ charon6 --recv --cidr <IPv6 CIDR>
 - `--recv`, `-r` — receive mode: decode packets to stdout.
 - `--cidr` (required) — IPv6 `/64` range used to encode/decode destination addresses.
 - `--port <N>` — listen for UDP on this port instead of ICMP.
+- `--key <passphrase>` — decrypt with XTEA (must match sender).
 
-By default, the receiver only accepts ICMPv6 echo packets. Specify `--port`
-to listen for UDP instead.
-
-#### via ICMP
 ```
 charon6 --recv --cidr 2001:db8::/64
-```
-
-#### via UDP
-```
+charon6 --recv --cidr 2001:db8::/64 --key secret
 charon6 --recv --cidr 2001:db8::/64 --port 9999
 ```
 
@@ -95,9 +90,18 @@ of its destination address. Locked to `/64`, so the host portion is 8 bytes:
 - Frames with `len > 6` or destinations outside the configured CIDR are dropped
   and logged to stderr.
 
+### Encryption
+
+When `--key` is provided, the entire 8-byte host portion (seq, len, and
+payload) is encrypted with the XTEA block cipher before embedding in the
+destination address. The receiver decrypts each packet independently before
+reassembly. The passphrase must match on both sides.
+
 ### Current limitations
 
-- No integrity check, no encryption, no multi-message multiplexing.
+- No integrity check or multi-message multiplexing.
+- XTEA-ECB: identical plaintext blocks produce identical ciphertext across
+  messages (within a message, seq always differs so this does not occur).
 - Prefix is fixed at `/64`.
 - Max 256 packets per message (seq is u8).
 

@@ -6,7 +6,7 @@ Abusing the IPv6 address space to transmit data covertly.
 
 ## Concept
 
-Data is encoded into IPv6 destination addresses and in the form of a series of ICMPv6 echoes or UDP datagrams. The payload lives entirely in the destination address. The receiver captures raw packets and decodes the destination addresses, reassembling out-of-order packets.
+Data is encoded into IPv6 destination addresses and in the form of a series of ICMPv6 echoes or UDP datagrams. The payload lives entirely in the destination address.
 
 ## Usage
 
@@ -24,7 +24,10 @@ By default, packets are sent as ICMPv6 echo requests. Specify `--port` to use UD
 
 Examples:
 ```
+# send via ICMP
 echo -n "hello world" | charon6 --send --cidr 2001:db8::/64
+
+# send via UDP
 echo -n "hello world" | charon6 --send --cidr 2001:db8::/64 --port 9999
 ```
 
@@ -39,12 +42,14 @@ charon6 --recv --cidr <IPv6 CIDR>
 - `--port <N>` — listen for UDP on this port instead of ICMP.
 
 By default, the receiver only accepts ICMPv6 echo packets. Specify `--port`
-to listen for UDP instead. The `--port` flag should match on both sender and
-receiver.
+to listen for UDP instead.
 
 Examples:
 ```
+# receive via ICMP
 charon6 --recv --cidr 2001:db8::/64
+
+# receive via UDP
 charon6 --recv --cidr 2001:db8::/64 --port 9999
 ```
 

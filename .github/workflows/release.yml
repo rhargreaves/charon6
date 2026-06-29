@@ -25,8 +25,11 @@ jobs:
       - name: Build release binary in Docker
         run: make release-ci
 
+      - name: Rename binary with architecture
+        run: mv dist/charon6 dist/charon6-linux-$(uname -m)
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/charon6
+          files: dist/charon6-linux-*
           generate_release_notes: true

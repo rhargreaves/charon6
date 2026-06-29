@@ -14,5 +14,6 @@
 - Code this project using Test Driven Development (test first, red, green, refactor). Commit after each passing test. Do not create more than one test at a time.
 - If you ever run an ad-hoc test consider making it a permanent test if regression is not expected.
 
-## Project Structure
+## Project Structure & Documentation
 - Ensure you update README.md, Makefile and CI/CD when you have made a change.
+- Do not add verbose implementation details in the README; just the high-level feature set.

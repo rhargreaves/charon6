@@ -32,7 +32,7 @@ pub fn receive_loop(
     use std::os::fd::AsRawFd;
 
     let mut buf = vec![0u8; 65536];
-    let mut reassembler = Reassembler::new();
+    let mut reassembler = Reassembler::default();
     let mut started_at: Option<Instant> = None;
     let stdout = std::io::stdout();
 

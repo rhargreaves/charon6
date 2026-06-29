@@ -30,10 +30,6 @@ pub(crate) struct Reassembler {
 }
 
 impl Reassembler {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     pub fn push(&mut self, frame: Frame) {
         if frame.is_last {
             self.last_seq = Some(frame.seq);
@@ -176,7 +172,7 @@ mod tests {
 
     #[test]
     fn reassembler_takes_complete_message_in_order() {
-        let mut r = Reassembler::new();
+        let mut r = Reassembler::default();
         r.push(Frame {
             seq: 0,
             payload: b"hello ".to_vec(),
@@ -193,7 +189,7 @@ mod tests {
 
     #[test]
     fn reassembler_takes_complete_message_out_of_order() {
-        let mut r = Reassembler::new();
+        let mut r = Reassembler::default();
         r.push(Frame {
             seq: 1,
             payload: b"world".to_vec(),
@@ -210,7 +206,7 @@ mod tests {
 
     #[test]
     fn reassembler_incomplete_returns_none() {
-        let mut r = Reassembler::new();
+        let mut r = Reassembler::default();
         r.push(Frame {
             seq: 0,
             payload: b"a".to_vec(),
@@ -226,7 +222,7 @@ mod tests {
 
     #[test]
     fn reassembler_duplicate_frames_are_idempotent() {
-        let mut r = Reassembler::new();
+        let mut r = Reassembler::default();
         r.push(Frame {
             seq: 0,
             payload: b"hello ".to_vec(),
@@ -247,7 +243,7 @@ mod tests {
 
     #[test]
     fn reassembler_resets_after_take() {
-        let mut r = Reassembler::new();
+        let mut r = Reassembler::default();
         r.push(Frame {
             seq: 0,
             payload: b"first".to_vec(),
@@ -265,7 +261,7 @@ mod tests {
 
     #[test]
     fn reassembler_single_terminator_frame() {
-        let mut r = Reassembler::new();
+        let mut r = Reassembler::default();
         r.push(Frame {
             seq: 0,
             payload: b"hi".to_vec(),

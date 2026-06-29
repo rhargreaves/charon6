@@ -10,6 +10,6 @@ cipher = "0.5"
 clap = { version = "4.6.1", features = ["derive"] }
 hmac = "0.12"
 nix = { version = "0.31", features = ["socket", "net"] }
-pbkdf2 = "0.13"
+pbkdf2 = { version = "=0.12.2", features = ["hmac"] }
 sha2 = "0.10"
 xtea = "0.1"

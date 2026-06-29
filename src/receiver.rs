@@ -98,7 +98,9 @@ fn verify_payload(payload: Vec<u8>, cipher: Option<&Cipher>) -> Option<Vec<u8>> 
                 return None;
             }
             let (msg, tag) = payload.split_at(payload.len() - HMAC_LEN);
-            let tag: &[u8; HMAC_LEN] = tag.try_into().unwrap();
+            let tag: &[u8; HMAC_LEN] = tag
+                .try_into()
+                .expect("split_at guarantees tag is exactly HMAC_LEN bytes");
             if !c.verify_hmac(msg, tag) {
                 eprintln!("dropped: HMAC verification failed");
                 return None;

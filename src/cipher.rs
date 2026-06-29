@@ -13,7 +13,11 @@ pub struct Cipher([u8; KEY_LEN]);
 impl Cipher {
     pub fn from_passphrase(passphrase: &str) -> Self {
         let hash = Sha256::digest(passphrase.as_bytes());
-        Self(hash[..KEY_LEN].try_into().unwrap())
+        Self(
+            hash[..KEY_LEN]
+                .try_into()
+                .expect("SHA-256 output is 32 bytes; KEY_LEN (16) fits"),
+        )
     }
 
     pub fn encrypt(&self, block: &[u8; 8]) -> [u8; 8] {
@@ -34,7 +38,9 @@ impl Cipher {
         let mut mac = HmacSha256::new_from_slice(&self.0).expect("HMAC accepts any key length");
         mac.update(message);
         let result = mac.finalize().into_bytes();
-        result[..HMAC_LEN].try_into().unwrap()
+        result[..HMAC_LEN]
+            .try_into()
+            .expect("SHA-256 output is 32 bytes; HMAC_LEN (16) fits")
     }
 
     pub fn verify_hmac(&self, message: &[u8], tag: &[u8; HMAC_LEN]) -> bool {

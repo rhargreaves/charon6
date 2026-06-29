@@ -102,7 +102,9 @@ pub(crate) fn decode_dst(
         return Err(DecodeError::OutOfCidr);
     }
     let bytes = addr.octets();
-    let raw_host: [u8; HOST_BYTES] = bytes[bytes.len() - HOST_BYTES..].try_into().unwrap();
+    let raw_host: [u8; HOST_BYTES] = bytes[bytes.len() - HOST_BYTES..]
+        .try_into()
+        .expect("Ipv6Addr::octets() is 16 bytes; HOST_BYTES (8) fits");
 
     let host = match key {
         Some(k) => k.decrypt(&raw_host),

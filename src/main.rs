@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use charon6::{Cipher, Ipv6Cidr, Transport, capture_loop, open_ipv6_packet_socket, send_message};
+use charon6::{Cipher, Ipv6Cidr, Transport, open_ipv6_packet_socket, receive_loop, send_message};
 use clap::Parser;
 
 const DEFAULT_TIMEOUT_SECS: u64 = 5;
@@ -96,7 +96,7 @@ fn run_recv(cidr: &Ipv6Cidr, transport: &Transport, key: Option<Cipher>, timeout
         Transport::Icmp => eprintln!("Listening for ICMPv6 packets, decoding {cidr}..."),
     }
 
-    if let Err(err) = capture_loop(&fd, cidr, transport, key, timeout) {
+    if let Err(err) = receive_loop(&fd, cidr, transport, key, timeout) {
         if err.kind() == std::io::ErrorKind::BrokenPipe {
             return;
         }

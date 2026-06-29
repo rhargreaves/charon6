@@ -24,7 +24,7 @@ pub fn open_ipv6_packet_socket() -> std::io::Result<OwnedFd> {
     .map_err(nix_to_io)
 }
 
-pub fn capture_loop(
+pub fn receive_loop(
     fd: &OwnedFd,
     cidr: &Ipv6Cidr,
     transport: &Transport,

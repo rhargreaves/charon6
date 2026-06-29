@@ -1,6 +1,6 @@
 [package]
 name = "charon6"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Covert data transmission via IPv6 destination addresses"
 license = "MIT"

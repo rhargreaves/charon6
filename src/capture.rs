@@ -1,5 +1,6 @@
 use std::io::Write;
 use std::os::fd::OwnedFd;
+use std::time::Duration;
 
 use crate::Transport;
 
@@ -28,12 +29,13 @@ pub fn capture_loop(
     cidr: &Ipv6Cidr,
     transport: &Transport,
     key: Option<crate::cipher::Cipher>,
+    timeout: Duration,
 ) -> std::io::Result<()> {
     use nix::sys::socket::{MsgFlags, recv};
     use std::os::fd::AsRawFd;
 
     let mut buf = vec![0u8; 65536];
-    let mut reassembler = Reassembler::new();
+    let mut reassembler = Reassembler::new(timeout);
     let stdout = std::io::stdout();
     loop {
         let n = recv(fd.as_raw_fd(), &mut buf, MsgFlags::empty()).map_err(nix_to_io)?;
@@ -58,7 +60,9 @@ pub fn capture_loop(
         match decode_dst(info.dst, cidr, key.as_ref()) {
             Ok(frame) => {
                 eprintln!("src={} -> dst={}", info.src, info.dst);
-                reassembler.push(frame);
+                if reassembler.push(frame) {
+                    eprintln!("dropped: incomplete message timed out");
+                }
                 if let Some(payload) = reassembler.take() {
                     let message = match &key {
                         Some(cipher) => {

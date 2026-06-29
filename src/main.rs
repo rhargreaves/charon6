@@ -1,6 +1,9 @@
-use charon6::{Cipher, Ipv6Cidr, Transport, capture_loop, open_ipv6_packet_socket, send_message};
+use std::time::Duration;
 
+use charon6::{Cipher, Ipv6Cidr, Transport, capture_loop, open_ipv6_packet_socket, send_message};
 use clap::Parser;
+
+const DEFAULT_TIMEOUT_SECS: u64 = 5;
 
 #[derive(Parser)]
 #[command(about = "Encode/decode messages in IPv6 destination addresses")]
@@ -23,6 +26,14 @@ struct Args {
 
     #[arg(short, long, help = "Encrypt/decrypt with passphrase (XTEA)")]
     key: Option<String>,
+
+    #[arg(
+        short,
+        long,
+        default_value_t = DEFAULT_TIMEOUT_SECS,
+        help = "Message reassembly timeout in seconds (recv mode)"
+    )]
+    timeout: u64,
 }
 
 fn main() {
@@ -47,10 +58,12 @@ fn main() {
         None => Transport::Icmp,
     };
 
+    let timeout = Duration::from_secs(args.timeout);
+
     if args.send {
         run_send(&args.cidr, &transport, cipher);
     } else {
-        run_recv(&args.cidr, &transport, cipher);
+        run_recv(&args.cidr, &transport, cipher, timeout);
     }
 }
 
@@ -69,7 +82,7 @@ fn run_send(cidr: &Ipv6Cidr, transport: &Transport, key: Option<Cipher>) {
     }
 }
 
-fn run_recv(cidr: &Ipv6Cidr, transport: &Transport, key: Option<Cipher>) {
+fn run_recv(cidr: &Ipv6Cidr, transport: &Transport, key: Option<Cipher>, timeout: Duration) {
     let fd = match open_ipv6_packet_socket() {
         Ok(fd) => fd,
         Err(err) => {
@@ -83,7 +96,7 @@ fn run_recv(cidr: &Ipv6Cidr, transport: &Transport, key: Option<Cipher>) {
         Transport::Icmp => eprintln!("Listening for ICMPv6 packets, decoding {cidr}..."),
     }
 
-    if let Err(err) = capture_loop(&fd, cidr, transport, key) {
+    if let Err(err) = capture_loop(&fd, cidr, transport, key, timeout) {
         if err.kind() == std::io::ErrorKind::BrokenPipe {
             return;
         }

@@ -117,28 +117,11 @@ with [XTEA-ECB](https://en.wikipedia.org/wiki/XTEA) before embedding in the dest
 - Prefix is fixed at `/64`.
 - Max 256 packets per message.
 
-## Install
-
-Pre-built binaries for Linux are available on the
-[releases page](https://github.com/rhargreaves/charon6/releases).
-Download and place on your `$PATH`:
-
-```
-curl -L https://github.com/rhargreaves/charon6/releases/latest/download/charon6 \
-  -o /usr/local/bin/charon6 && chmod +x /usr/local/bin/charon6
-```
-
 ## Build
 
 ```
-make build
-```
-
-For an optimised release binary:
-
-```
-make release
-# binary at target/release/charon6
+make build    # debug
+make release  # release
 ```
 
 ## Test

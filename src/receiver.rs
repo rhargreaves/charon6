@@ -74,9 +74,9 @@ pub fn receive_loop(
                 }
             }
             Err(DecodeError::OutOfCidr) => {}
-            Err(DecodeError::InvalidLen(len)) => {
+            Err(e @ DecodeError::InvalidLen(_)) => {
                 eprintln!("src={} -> dst={}", info.src, info.dst);
-                eprintln!("dropped: invalid len={len} from {}", info.dst);
+                eprintln!("dropped: {e} from {}", info.dst);
             }
         }
     }

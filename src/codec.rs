@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt;
 use std::net::Ipv6Addr;
 
 use crate::cidr::Ipv6Cidr;
@@ -16,6 +17,23 @@ pub(crate) enum DecodeError {
     OutOfCidr,
     InvalidLen(u8),
 }
+
+impl fmt::Display for DecodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DecodeError::OutOfCidr => write!(f, "address outside configured CIDR"),
+            DecodeError::InvalidLen(len) => {
+                write!(
+                    f,
+                    "invalid frame length {len} (max {})",
+                    MAX_PAYLOAD_PER_FRAME
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for DecodeError {}
 
 const HOST_BYTES: usize = 8;
 const SEQ_OFFSET: usize = 0;

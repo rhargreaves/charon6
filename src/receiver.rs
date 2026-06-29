@@ -6,11 +6,8 @@ use crate::Transport;
 use crate::cidr::Ipv6Cidr;
 use crate::cipher::{Cipher, HMAC_LEN};
 use crate::codec::{DecodeError, Reassembler, decode_dst};
+use crate::nix_to_io;
 use crate::packet::{PROTO_ICMPV6, PROTO_UDP, PacketInfo, parse_ipv6_packet};
-
-fn nix_to_io(err: nix::Error) -> std::io::Error {
-    std::io::Error::from_raw_os_error(err as i32)
-}
 
 pub fn open_ipv6_packet_socket() -> std::io::Result<OwnedFd> {
     use nix::sys::socket::{AddressFamily, SockFlag, SockProtocol, SockType, socket};

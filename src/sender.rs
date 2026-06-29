@@ -4,10 +4,7 @@ use std::net::Ipv6Addr;
 use crate::Transport;
 use crate::cidr::Ipv6Cidr;
 use crate::codec::{MAX_PAYLOAD_PER_FRAME, encode_dst};
-
-fn nix_to_io(err: nix::Error) -> io::Error {
-    io::Error::from_raw_os_error(err as i32)
-}
+use crate::nix_to_io;
 
 const MAX_PACKETS: usize = u8::MAX as usize + 1;
 

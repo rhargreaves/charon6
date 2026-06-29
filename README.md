@@ -50,8 +50,7 @@ charon6 --recv --cidr <IPv6 CIDR>
 - `--cidr` (required) — IPv6 `/64` range used to encode/decode destination addresses.
 - `--port <N>` — listen for UDP on this port instead of ICMP.
 - `--key <passphrase>` — decrypt with passphrase.
-- `--timeout <seconds>` — message reassembly timeout (default: 5). Incomplete
-  messages are discarded if not fully received within this window.
+- `--timeout <seconds>` — message receive timeout (default: 5).
 
 ```
 charon6 --recv --cidr 2001:db8::/64

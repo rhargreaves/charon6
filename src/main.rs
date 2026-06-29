@@ -42,14 +42,16 @@ fn main() {
 
     let args = Args::parse();
 
-    if args.send && args.recv {
-        eprintln!("error: cannot use --send and --recv together");
-        std::process::exit(1);
-    }
-
-    if !args.send && !args.recv {
-        eprintln!("error: specify --send or --recv");
-        std::process::exit(1);
+    match (args.send, args.recv) {
+        (true, true) => {
+            eprintln!("error: cannot use --send and --recv together");
+            std::process::exit(1);
+        }
+        (false, false) => {
+            eprintln!("error: specify --send or --recv");
+            std::process::exit(1);
+        }
+        _ => {}
     }
 
     let cipher = args.key.as_deref().map(Cipher::from_passphrase);

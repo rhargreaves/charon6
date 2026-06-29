@@ -91,10 +91,7 @@ fn run_recv(cidr: &Ipv6Cidr, transport: &Transport, key: Option<Cipher>, timeout
         }
     };
 
-    match transport {
-        Transport::Udp(p) => eprintln!("Listening for UDP/{p} packets, decoding {cidr}..."),
-        Transport::Icmp => eprintln!("Listening for ICMPv6 packets, decoding {cidr}..."),
-    }
+    eprintln!("Listening for {transport} packets, decoding {cidr}...");
 
     if let Err(err) = receive_loop(&fd, cidr, transport, key, timeout) {
         if err.kind() == std::io::ErrorKind::BrokenPipe {

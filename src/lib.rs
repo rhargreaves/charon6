@@ -18,6 +18,15 @@ pub enum Transport {
     Udp(u16),
 }
 
+impl std::fmt::Display for Transport {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Transport::Icmp => write!(f, "ICMPv6"),
+            Transport::Udp(port) => write!(f, "UDP/{port}"),
+        }
+    }
+}
+
 pub(crate) fn nix_to_io(err: nix::Error) -> std::io::Error {
     std::io::Error::from_raw_os_error(err as i32)
 }

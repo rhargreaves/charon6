@@ -2,7 +2,7 @@
 name = "charon6"
 version = "0.1.1"
 edition = "2024"
-description = "Covert data transmission via IPv6 destination addresses"
+description = "Abusing the IPv6 address space to transmit data covertly"
 license = "MIT"
 
 [dependencies]

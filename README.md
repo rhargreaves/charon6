@@ -106,8 +106,10 @@ When `--key` is provided, the entire 8-byte host portion is encrypted
 with [XTEA](https://en.wikipedia.org/wiki/XTEA) in ECB mode
 before embedding in the destination address.
 
-- Cipher: 64-bit XTEA block cipher with 128-bit key.
-- Key derivation: The passphrase is hashed with SHA-256 and truncated to 128 bits.
+- **Cipher:** XTEA — 64-bit block cipher with 128-bit key, 64 Feistel rounds (32 cycles).
+- **Key derivation:** PBKDF2-SHA256 with 100,000 iterations and a fixed salt (`C8Ar0n6`),
+  producing a 128-bit key. Adds ~100ms at startup when `--key` is used. Defeats
+  rainbow table attacks and makes brute force expensive.
 - Each packet is encrypted and decrypted independently, allowing out-of-order reassembly.
 - An observer cannot see the sequence number, payload length, or payload content.
 - A 16-byte HMAC-SHA256 tag is appended to the message for integrity verification.

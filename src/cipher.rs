@@ -1,9 +1,13 @@
 use cipher::{BlockCipherDecrypt, BlockCipherEncrypt, KeyInit};
 use hmac::{Hmac, Mac};
-use sha2::{Digest, Sha256};
+use pbkdf2::pbkdf2_hmac;
+use sha2::Sha256;
 
 const KEY_LEN: usize = 16;
 pub(crate) const HMAC_LEN: usize = 16;
+
+const PBKDF2_SALT: &[u8] = b"C8Ar0n6";
+const PBKDF2_ITERATIONS: u32 = 100_000;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -12,12 +16,14 @@ pub struct Cipher([u8; KEY_LEN]);
 
 impl Cipher {
     pub fn from_passphrase(passphrase: &str) -> Self {
-        let hash = Sha256::digest(passphrase.as_bytes());
-        Self(
-            hash[..KEY_LEN]
-                .try_into()
-                .expect("SHA-256 output is 32 bytes; KEY_LEN (16) fits"),
-        )
+        let mut key = [0u8; KEY_LEN];
+        pbkdf2_hmac::<Sha256>(
+            passphrase.as_bytes(),
+            PBKDF2_SALT,
+            PBKDF2_ITERATIONS,
+            &mut key,
+        );
+        Self(key)
     }
 
     pub fn encrypt(&self, block: &[u8; 8]) -> [u8; 8] {

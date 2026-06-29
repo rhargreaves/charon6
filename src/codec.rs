@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 use std::net::Ipv6Addr;
-use std::time::{Duration, Instant};
 
 use crate::cidr::Ipv6Cidr;
 use crate::cipher::Cipher;
@@ -24,43 +23,25 @@ const LEN_OFFSET: usize = 1;
 const PAYLOAD_OFFSET: usize = 2;
 pub(crate) const MAX_PAYLOAD_PER_FRAME: usize = HOST_BYTES - PAYLOAD_OFFSET;
 
+#[derive(Default)]
 pub(crate) struct Reassembler {
     frames: BTreeMap<u8, Frame>,
     last_seq: Option<u8>,
-    created_at: Option<Instant>,
-    timeout: Duration,
 }
 
 impl Reassembler {
-    pub fn new(timeout: Duration) -> Self {
-        Self {
-            frames: BTreeMap::new(),
-            last_seq: None,
-            created_at: None,
-            timeout,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    pub fn push(&mut self, frame: Frame) -> bool {
-        let expired = self.is_expired();
-        if expired {
-            self.clear();
-        }
-        if self.frames.is_empty() {
-            self.created_at = Some(Instant::now());
-        }
+    pub fn push(&mut self, frame: Frame) {
         if frame.is_last {
             self.last_seq = Some(frame.seq);
         }
         self.frames.insert(frame.seq, frame);
-        expired
     }
 
     pub fn take(&mut self) -> Option<Vec<u8>> {
-        if self.is_expired() {
-            self.clear();
-            return None;
-        }
         if !self.is_complete() {
             return None;
         }
@@ -73,21 +54,20 @@ impl Reassembler {
         Some(message)
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.frames.is_empty()
+    }
+
+    pub fn clear(&mut self) {
+        self.frames.clear();
+        self.last_seq = None;
+    }
+
     fn is_complete(&self) -> bool {
         match self.last_seq {
             Some(last) => self.frames.len() == last as usize + 1,
             None => false,
         }
-    }
-
-    fn is_expired(&self) -> bool {
-        self.created_at.is_some_and(|t| t.elapsed() >= self.timeout)
-    }
-
-    fn clear(&mut self) {
-        self.frames.clear();
-        self.last_seq = None;
-        self.created_at = None;
     }
 }
 
@@ -148,8 +128,6 @@ mod tests {
     use super::*;
     use crate::test_helpers::{addr, doc_cidr};
 
-    const NO_TIMEOUT: Duration = Duration::from_secs(3600);
-
     #[test]
     fn rejects_len_exceeding_payload_capacity() {
         let c = doc_cidr();
@@ -196,7 +174,7 @@ mod tests {
 
     #[test]
     fn reassembler_takes_complete_message_in_order() {
-        let mut r = Reassembler::new(NO_TIMEOUT);
+        let mut r = Reassembler::new();
         r.push(Frame {
             seq: 0,
             payload: b"hello ".to_vec(),
@@ -213,7 +191,7 @@ mod tests {
 
     #[test]
     fn reassembler_takes_complete_message_out_of_order() {
-        let mut r = Reassembler::new(NO_TIMEOUT);
+        let mut r = Reassembler::new();
         r.push(Frame {
             seq: 1,
             payload: b"world".to_vec(),
@@ -230,7 +208,7 @@ mod tests {
 
     #[test]
     fn reassembler_incomplete_returns_none() {
-        let mut r = Reassembler::new(NO_TIMEOUT);
+        let mut r = Reassembler::new();
         r.push(Frame {
             seq: 0,
             payload: b"a".to_vec(),
@@ -241,13 +219,12 @@ mod tests {
             payload: b"c".to_vec(),
             is_last: true,
         });
-        // seq 1 missing
         assert!(r.take().is_none());
     }
 
     #[test]
     fn reassembler_duplicate_frames_are_idempotent() {
-        let mut r = Reassembler::new(NO_TIMEOUT);
+        let mut r = Reassembler::new();
         r.push(Frame {
             seq: 0,
             payload: b"hello ".to_vec(),
@@ -268,7 +245,7 @@ mod tests {
 
     #[test]
     fn reassembler_resets_after_take() {
-        let mut r = Reassembler::new(NO_TIMEOUT);
+        let mut r = Reassembler::new();
         r.push(Frame {
             seq: 0,
             payload: b"first".to_vec(),
@@ -276,7 +253,6 @@ mod tests {
         });
         assert!(r.take().is_some());
         assert!(r.take().is_none());
-        // Can accept a new message
         r.push(Frame {
             seq: 0,
             payload: b"second".to_vec(),
@@ -287,7 +263,7 @@ mod tests {
 
     #[test]
     fn reassembler_single_terminator_frame() {
-        let mut r = Reassembler::new(NO_TIMEOUT);
+        let mut r = Reassembler::new();
         r.push(Frame {
             seq: 0,
             payload: b"hi".to_vec(),
@@ -315,36 +291,5 @@ mod tests {
         assert_eq!(frame.seq, 0);
         assert_eq!(frame.payload, b"hello ");
         assert!(!frame.is_last);
-    }
-
-    #[test]
-    fn reassembler_expires_incomplete_message() {
-        let mut r = Reassembler::new(Duration::from_millis(50));
-        r.push(Frame {
-            seq: 0,
-            payload: b"hello ".to_vec(),
-            is_last: false,
-        });
-        std::thread::sleep(Duration::from_millis(60));
-        // Push a new frame after timeout — should discard old buffer
-        let expired = r.push(Frame {
-            seq: 0,
-            payload: b"fresh".to_vec(),
-            is_last: true,
-        });
-        assert!(expired);
-        assert_eq!(r.take(), Some(b"fresh".to_vec()));
-    }
-
-    #[test]
-    fn reassembler_take_returns_none_after_expiry() {
-        let mut r = Reassembler::new(Duration::from_millis(50));
-        r.push(Frame {
-            seq: 0,
-            payload: b"hello ".to_vec(),
-            is_last: false,
-        });
-        std::thread::sleep(Duration::from_millis(60));
-        assert!(r.take().is_none());
     }
 }

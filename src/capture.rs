@@ -1,16 +1,16 @@
 use std::io::Write;
 use std::os::fd::OwnedFd;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::Transport;
-
-fn nix_to_io(err: nix::Error) -> std::io::Error {
-    std::io::Error::from_raw_os_error(err as i32)
-}
 use crate::cidr::Ipv6Cidr;
 use crate::cipher::HMAC_LEN;
 use crate::codec::{DecodeError, Reassembler, decode_dst};
 use crate::packet::{PROTO_ICMPV6, PROTO_UDP, parse_ipv6_packet};
+
+fn nix_to_io(err: nix::Error) -> std::io::Error {
+    std::io::Error::from_raw_os_error(err as i32)
+}
 
 pub fn open_ipv6_packet_socket() -> std::io::Result<OwnedFd> {
     use nix::sys::socket::{AddressFamily, SockFlag, SockProtocol, SockType, socket};
@@ -35,9 +35,18 @@ pub fn capture_loop(
     use std::os::fd::AsRawFd;
 
     let mut buf = vec![0u8; 65536];
-    let mut reassembler = Reassembler::new(timeout);
+    let mut reassembler = Reassembler::new();
+    let mut started_at: Option<Instant> = None;
     let stdout = std::io::stdout();
     loop {
+        if let Some(t) = started_at
+            && t.elapsed() >= timeout
+        {
+            eprintln!("dropped: incomplete message timed out");
+            reassembler.clear();
+            started_at = None;
+        }
+
         let n = recv(fd.as_raw_fd(), &mut buf, MsgFlags::empty()).map_err(nix_to_io)?;
         let Some(info) = parse_ipv6_packet(&buf[..n]) else {
             eprintln!("dropped: malformed IPv6 header");
@@ -60,10 +69,12 @@ pub fn capture_loop(
         match decode_dst(info.dst, cidr, key.as_ref()) {
             Ok(frame) => {
                 eprintln!("src={} -> dst={}", info.src, info.dst);
-                if reassembler.push(frame) {
-                    eprintln!("dropped: incomplete message timed out");
+                if reassembler.is_empty() {
+                    started_at = Some(Instant::now());
                 }
+                reassembler.push(frame);
                 if let Some(payload) = reassembler.take() {
+                    started_at = None;
                     let message = match &key {
                         Some(cipher) => {
                             if payload.len() < HMAC_LEN {

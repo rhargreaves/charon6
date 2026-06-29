@@ -97,22 +97,17 @@ of its destination address. Locked to `/64`, so the host portion is 8 bytes:
 - `seq` — sequence number (0-255) for packet reordering.
 - `len` — 0..=6. A packet with `len < 6` is the terminator of a message;
   the receiver emits the accumulated payload followed by a newline and flushes.
-- Frames with `len > 6` or destinations outside the configured CIDR are dropped
-  and logged to stderr.
 
 ### Encryption
 
 When `--key` is provided, the entire 8-byte host portion is encrypted
-with [XTEA](https://en.wikipedia.org/wiki/XTEA) in ECB mode
-before embedding in the destination address.
+with [XTEA-ECB](https://en.wikipedia.org/wiki/XTEA) before embedding in the destination address.
 
-- **Cipher:** XTEA — 64-bit block cipher with 128-bit key, 64 Feistel rounds (32 cycles).
-- **Key derivation:** PBKDF2-SHA256 with 100,000 iterations and a fixed salt (`C8Ar0n6`),
-  producing a 128-bit key. Adds ~100ms at startup when `--key` is used. Defeats
-  rainbow table attacks and makes brute force expensive.
-- Each packet is encrypted and decrypted independently, allowing out-of-order reassembly.
+- Cipher: XTEA (64-bit block cipher with 128-bit key)
+- Key derivation: PBKDF2-SHA256
+- Each packet is encrypted and decrypted independently.
 - An observer cannot see the sequence number, payload length, or payload content.
-- A 16-byte HMAC-SHA256 tag is appended to the message for integrity verification.
+- Message integrity provided by HMAC-SHA256.
 
 ### Limitations
 
